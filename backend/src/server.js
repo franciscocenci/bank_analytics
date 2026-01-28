@@ -2,6 +2,7 @@ const express = require("express");
 const db = require("./config/database");
 const authRoutes = require("./routes/auth.routes");
 const userRoutes = require("./routes/user.routes");
+const agenciaRoutes = require("./routes/agencia.routes");
 
 require("./models");
 require("dotenv").config();
@@ -21,6 +22,7 @@ db.authenticate()
     return db.sync();
   })
   .then(() => {
+    app.use("/agencias", agenciaRoutes);
     app.use("/users", userRoutes);
     app.use("/auth", authRoutes);
     app.listen(PORT, () => {
