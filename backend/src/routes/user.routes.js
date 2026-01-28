@@ -1,29 +1,33 @@
 const express = require("express");
 const authMiddleware = require("../middlewares/auth");
 const authorize = require("../middlewares/authorize");
+const UserController = require("../controllers/UserController");
 
 const router = express.Router();
 
-router.get("/admin-only", authMiddleware, authorize(["admin"]), (req, res) => {
-  return res.json({ message: "Bem-vindo, administrador" });
-});
-
-router.get(
-  "/gestao",
+router.post(
+  "/",
   authMiddleware,
   authorize(["admin", "gerente"]),
-  (req, res) => {
-    return res.json({ message: "Área de gestão" });
-  },
+  UserController.create,
 );
 
 router.get(
-  "/dashboard",
+  "/",
   authMiddleware,
-  authorize(["admin", "gerente", "usuario"]),
-  (req, res) => {
-    return res.json({ message: "Dashboard liberado" });
-  },
+  authorize(["admin", "gerente"]),
+  UserController.index,
+);
+
+router.get("/:id", authMiddleware, UserController.show);
+
+router.put("/:id", authMiddleware, UserController.update);
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  authorize(["admin"]),
+  UserController.delete,
 );
 
 module.exports = router;

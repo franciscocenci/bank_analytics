@@ -14,6 +14,7 @@ module.exports = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.id;
     req.userPerfil = decoded.perfil;
+    req.userAgenciaId = decoded.agenciaId;
 
     return next();
   } catch {
