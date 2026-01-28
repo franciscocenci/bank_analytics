@@ -1,5 +1,8 @@
 const express = require("express");
 const db = require("./config/database");
+const authRoutes = require("./routes/auth.routes");
+const userRoutes = require("./routes/user.routes");
+
 require("./models");
 require("dotenv").config();
 
@@ -18,6 +21,8 @@ db.authenticate()
     return db.sync();
   })
   .then(() => {
+    app.use("/users", userRoutes);
+    app.use("/auth", authRoutes);
     app.listen(PORT, () => {
       console.log(`🚀 Servidor rodando na porta ${PORT}`);
     });
