@@ -1,45 +1,33 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const { Model, DataTypes } = require("sequelize");
 
-const VendaMeta = sequelize.define(
-  "VendaMeta",
-  {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
+module.exports = (sequelize) => {
+  class VendaMeta extends Model {}
+
+  VendaMeta.init(
+    {
+      data: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+      },
+      produto: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      valorMeta: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+      },
+      valorRealizado: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+      },
     },
-
-    mes: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
+    {
+      sequelize,
+      modelName: "VendaMeta",
+      tableName: "VendaMeta",
     },
+  );
 
-    ano: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-
-    produto: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-
-    valorMeta: {
-      type: DataTypes.DECIMAL(12, 2),
-      allowNull: false,
-    },
-
-    valorRealizado: {
-      type: DataTypes.DECIMAL(12, 2),
-      allowNull: false,
-      defaultValue: 0,
-    },
-  },
-  {
-    tableName: "vendas_metas",
-    timestamps: true,
-  },
-);
-
-module.exports = VendaMeta;
+  return VendaMeta;
+};

@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
-const { User } = require("../models");
+const { User, Agencia } = require("../models");
 require("dotenv").config();
 
 module.exports = {
@@ -8,15 +8,26 @@ module.exports = {
     try {
       const { nome, email, senha, perfil, AgenciaId } = req.body;
 
+      // ✅ 1. VERIFICA SE A AGÊNCIA EXISTE
+      const agencia = await Agencia.findByPk(AgenciaId);
+      if (!agencia) {
+        return res.status(400).json({ error: "Agência não encontrada" });
+      }
+
+      // ✅ 2. VERIFICA SE USUÁRIO JÁ EXISTE
       const userExists = await User.findOne({ where: { email } });
       if (userExists) {
         return res.status(400).json({ error: "Usuário já existe" });
       }
 
+      // 🔐 3. CRIA O HASH DA SENHA
+      const senhaHash = await bcrypt.hash(senha, 10);
+
+      // ✅ 4. CRIA O USUÁRIO
       const user = await User.create({
         nome,
         email,
-        senha,
+        senha: senhaHash,
         perfil,
         AgenciaId,
       });
@@ -28,7 +39,12 @@ module.exports = {
         perfil: user.perfil,
       });
     } catch (err) {
-      return res.status(500).json({ error: "Erro ao cadastrar usuário" });
+      console.error("❌ ERRO NO REGISTER:");
+      console.error(err);
+      return res.status(500).json({
+        error: "Erro ao cadastrar usuário",
+        details: err.message,
+      });
     }
   },
 

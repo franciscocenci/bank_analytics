@@ -1,46 +1,25 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
-const bcrypt = require("bcrypt");
+const { Model, DataTypes } = require("sequelize");
 
-const User = sequelize.define(
-  "User",
-  {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
+module.exports = (sequelize) => {
+  class User extends Model {}
+
+  User.init(
+    {
+      nome: DataTypes.STRING,
+      email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true,
+      },
+      senha: DataTypes.STRING,
+      perfil: DataTypes.STRING,
     },
-
-    nome: {
-      type: DataTypes.STRING,
-      allowNull: false,
+    {
+      sequelize,
+      modelName: "User",
+      tableName: "Users",
     },
+  );
 
-    email: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-    },
-
-    senha: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-
-    perfil: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      defaultValue: "usuario", // admin | gerente | usuario
-    },
-  },
-  {
-    tableName: "users",
-    timestamps: true,
-  },
-);
-
-User.beforeCreate(async (user) => {
-  user.senha = await bcrypt.hash(user.senha, 10);
-});
-
-module.exports = User;
+  return User;
+};

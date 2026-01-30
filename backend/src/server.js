@@ -1,36 +1,33 @@
 const express = require("express");
-const db = require("./config/database");
+const app = express();
+const { sequelize } = require("./models");
+const importRoutes = require("./routes/import.routes");
 const authRoutes = require("./routes/auth.routes");
-const userRoutes = require("./routes/user.routes");
-const agenciaRoutes = require("./routes/agencia.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 
-require("./models");
-require("dotenv").config();
-
-const app = express();
 app.use(express.json());
 
 app.get("/", (req, res) => {
   res.send("API Bank Analytics rodando 🚀");
 });
 
-const PORT = process.env.PORT || 5000;
+// 👇 ROTAS
+app.use("/auth", authRoutes);
+app.use("/dashboard", dashboardRoutes);
+app.use("/import", importRoutes);
 
-db.authenticate()
-  .then(() => {
+(async () => {
+  try {
+    await sequelize.authenticate();
     console.log("✅ Conectado ao PostgreSQL");
-    return db.sync();
-  })
-  .then(() => {
-    app.use("/dashboard", dashboardRoutes);
-    app.use("/agencias", agenciaRoutes);
-    app.use("/users", userRoutes);
-    app.use("/auth", authRoutes);
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+
+    await sequelize.sync({ alter: true });
+    console.log("📦 Tabelas sincronizadas");
+
+    app.listen(5000, () => {
+      console.log("🚀 Servidor rodando na porta 5000");
     });
-  })
-  .catch((err) => {
-    console.error("❌ Erro ao conectar no banco:", err);
-  });
+  } catch (err) {
+    console.error("❌ Erro ao iniciar servidor:", err);
+  }
+})();

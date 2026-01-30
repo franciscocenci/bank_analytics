@@ -1,30 +1,37 @@
-const { DataTypes } = require("sequelize");
-const sequelize = require("../config/database");
+const { Model, DataTypes } = require("sequelize");
 
-const Agencia = sequelize.define(
-  "Agencia",
-  {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
+module.exports = (sequelize) => {
+  class Agencia extends Model {}
+
+  Agencia.init(
+    {
+      nome: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      codigo: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+      },
     },
-
-    codigo: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
+    {
+      sequelize,
+      modelName: "Agencia",
+      tableName: "Agencia",
+      timestamps: true, // 👈 deixa explícito (boa prática)
     },
+  );
 
-    nome: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-  },
-  {
-    tableName: "agencias",
-    timestamps: true,
-  },
-);
-
-module.exports = Agencia;
+  return Agencia;
+};
