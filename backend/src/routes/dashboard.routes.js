@@ -1,9 +1,31 @@
 const express = require("express");
-const routes = express.Router();
-
 const DashboardController = require("../controllers/DashboardController");
+const authMiddleware = require("../middlewares/auth");
 
-// 📊 Evolução de vendas
-routes.get("/evolucao", DashboardController.evolucao);
+const router = express.Router();
 
-module.exports = routes;
+router.get(
+  "/evolucao-comparativa",
+  authMiddleware,
+  DashboardController.evolucaoComparativa,
+);
+
+router.get(
+  "/ranking-agencias",
+  authMiddleware,
+  DashboardController.rankingAgencias,
+);
+
+router.get(
+  "/ranking-agencias-por-percentual",
+  authMiddleware,
+  DashboardController.rankingAgenciasPorPercentual,
+);
+
+router.get(
+  "/evolucao-ranking-agencia",
+  authMiddleware,
+  DashboardController.evolucaoRankingAgencia,
+);
+
+module.exports = router;
