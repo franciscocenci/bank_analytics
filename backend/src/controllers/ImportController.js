@@ -1,84 +1,127 @@
 const xlsx = require("xlsx");
-const { VendaMeta, Agencia } = require("../models");
+const { VendaMeta, Agencia, sequelize } = require("../models");
 
 module.exports = {
   async importarMetas(req, res) {
+    // 🔐 Garantia extra
+    if (req.userPerfil !== "admin") {
+      return res.status(403).json({ error: "Apenas admin pode importar" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "Arquivo não enviado" });
+    }
+
+    const transaction = await sequelize.transaction();
+
     try {
-      // 1️⃣ Usuário logado (vem do middleware auth)
       const userId = req.userId;
 
-      // 2️⃣ Caminho do arquivo (por enquanto fixo)
-      const workbook = xlsx.readFile("import.xlsx");
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-
-      // 3️⃣ Converter Excel em JSON
+      // 📖 Ler arquivo do upload (buffer)
+      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = xlsx.utils.sheet_to_json(sheet);
 
       if (!rows.length) {
+        await transaction.rollback();
         return res.status(400).json({ error: "Planilha vazia" });
       }
 
-      // 4️⃣ Processar linha por linha
-      for (const row of rows) {
+      const relatorio = {
+        inseridos: 0,
+        atualizados: 0,
+        criadas: 0,
+        ignorados: 0,
+        erros: [],
+      };
+
+      for (let i = 0; i < rows.length; i++) {
+        const linhaExcel = i + 2; // cabeçalho é linha 1
+        const row = rows[i];
+
         const { data_ref, cod_ag, nome_ag, produto, meta, vendas } = row;
 
-        // 🔎 Buscar agência pelo código ou nome
-        let agencia = null;
-
-        // 🔹 Se veio código da agência
-        if (cod_ag !== undefined && cod_ag !== null) {
-          agencia = await Agencia.findOne({
-            where: { codigo: String(cod_ag) }, // 👈 CONVERSÃO CRÍTICA
+        // 🔎 Validação mínima
+        if (!data_ref || !cod_ag || !produto) {
+          relatorio.erros.push({
+            linha: linhaExcel,
+            erro: "Campos obrigatórios ausentes",
           });
+          relatorio.ignorados++;
+          continue;
         }
 
-        // 🔹 Se não achou pelo código, tenta pelo nome
-        if (!agencia && nome_ag) {
-          agencia = await Agencia.findOne({
-            where: { nome: nome_ag },
-          });
-        }
+        // 🏦 Normaliza código da agência (sempre STRING com 4 dígitos)
+        const codigoAgencia = String(cod_ag).padStart(4, "0");
 
+        // 🔍 Busca agência
+        let agencia = await Agencia.findOne({
+          where: { codigo: codigoAgencia },
+          transaction,
+        });
+
+        // 🆕 AUTOCADASTRO DE AGÊNCIA
         if (!agencia) {
-          console.warn(`Agência não encontrada: ${cod_ag || nome_ag}`);
-          continue; // pula linha inválida
+          agencia = await Agencia.create(
+            {
+              codigo: codigoAgencia,
+              nome: nome_ag || `Agência ${codigoAgencia}`,
+            },
+            { transaction },
+          );
+          relatorio.criadas++;
         }
 
-        // 🔍 Verifica se já existe registro para:
-        // data + produto + agência
-        const vendaExistente = await VendaMeta.findOne({
+        // 🔁 Verifica se já existe venda (data + produto + agência)
+        const existente = await VendaMeta.findOne({
           where: {
             data: data_ref,
             produto,
             AgenciaId: agencia.id,
           },
+          transaction,
         });
 
-        // ✅ Se já existir → ATUALIZA
-        if (vendaExistente) {
-          await vendaExistente.update({
-            valorMeta: meta,
-            valorRealizado: vendas,
-          });
-        }
-        // 🆕 Se não existir → CRIA
-        else {
-          await VendaMeta.create({
-            data: data_ref,
-            produto,
-            valorMeta: meta,
-            valorRealizado: vendas,
-            AgenciaId: agencia.id,
-            UserId: userId,
-          });
+        if (existente) {
+          await existente.update(
+            {
+              valorMeta: Number(meta) || 0,
+              valorRealizado: Number(vendas) || 0,
+              UserId: userId,
+            },
+            { transaction },
+          );
+          relatorio.atualizados++;
+        } else {
+          await VendaMeta.create(
+            {
+              data: data_ref,
+              produto,
+              valorMeta: Number(meta) || 0,
+              valorRealizado: Number(vendas) || 0,
+              AgenciaId: agencia.id,
+              UserId: userId,
+            },
+            { transaction },
+          );
+          relatorio.inseridos++;
         }
       }
 
-      return res.json({ message: "Importação concluída com sucesso" });
+      await transaction.commit();
+
+      return res.json({
+        message: "Importação concluída com sucesso",
+        relatorio,
+      });
     } catch (err) {
-      console.error("❌ Erro ao importar:", err);
-      return res.status(500).json({ error: "Erro na importação" });
+      await transaction.rollback();
+      console.error("❌ Erro no upload:", err);
+
+      return res.status(500).json({
+        error: "Erro ao importar planilha",
+        details: err.message,
+      });
     }
   },
 };

@@ -9,9 +9,15 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING,
         allowNull: false,
       },
+
       codigo: {
-        type: DataTypes.STRING,
-        allowNull: true,
+        type: DataTypes.STRING(4),
+        allowNull: false,
+        unique: true,
+        validate: {
+          isNumeric: true,
+          len: [1, 4],
+        },
       },
 
       createdAt: {
@@ -19,6 +25,7 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: DataTypes.NOW,
       },
+
       updatedAt: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -29,7 +36,7 @@ module.exports = (sequelize) => {
       sequelize,
       modelName: "Agencia",
       tableName: "Agencia",
-      timestamps: true, // 👈 deixa explícito (boa prática)
+      timestamps: true,
     },
   );
 

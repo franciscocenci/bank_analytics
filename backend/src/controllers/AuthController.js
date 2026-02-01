@@ -52,14 +52,37 @@ module.exports = {
     try {
       const { email, senha } = req.body;
 
+      // 🔍 LOG 1: O que veio do Frontend?
+      console.log("------------------------------------------");
+      console.log("📥 Tentativa de Login recebida:");
+      console.log("E-mail digitado:", email);
+      console.log("Senha digitada:", senha ? "****** (preenchida)" : "VAZIA");
+
       const user = await User.findOne({ where: { email } });
+
+      // 🔍 LOG 2: O usuário foi encontrado no banco?
       if (!user) {
-        return res.status(401).json({ error: "Usuário não encontrado" });
+        console.log("❌ Resultado: Usuário não encontrado no banco de dados.");
+        return res.status(401).json({ error: "E-mail ou senha inválidos" });
       }
 
+      console.log("✅ Resultado: Usuário encontrado!", user.nome);
+
       const senhaValida = await bcrypt.compare(senha, user.senha);
+
+      // 🔍 LOG 3: A senha bateu?
       if (!senhaValida) {
-        return res.status(401).json({ error: "Senha inválida" });
+        console.log("❌ Resultado: Senha incorreta.");
+        return res.status(401).json({ error: "E-mail ou senha inválidos" });
+      }
+
+      console.log("🔑 Resultado: Senha validada com sucesso!");
+
+      // Verifica se a chave secreta existe
+      if (!process.env.JWT_SECRET) {
+        console.log(
+          "⚠️ ERRO CRÍTICO: Variável JWT_SECRET não definida no .env!",
+        );
       }
 
       const token = jwt.sign(
@@ -72,6 +95,9 @@ module.exports = {
         { expiresIn: "1d" },
       );
 
+      console.log("🚀 Login realizado! Token gerado.");
+      console.log("------------------------------------------");
+
       return res.json({
         user: {
           id: user.id,
@@ -82,7 +108,12 @@ module.exports = {
         token,
       });
     } catch (err) {
-      return res.status(500).json({ error: "Erro no login" });
+      // 🔍 LOG 4: Se o sistema travar, por que foi?
+      console.error("💥 ERRO NO PROCESSO DE LOGIN:");
+      console.error(err);
+      return res
+        .status(500)
+        .json({ error: "Erro interno no servidor", details: err.message });
     }
   },
 };
