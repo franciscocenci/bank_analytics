@@ -1,4 +1,5 @@
 const { User } = require("../models");
+const bcrypt = require("bcrypt");
 
 module.exports = {
   async create(req, res) {
@@ -22,10 +23,12 @@ module.exports = {
       return res.status(400).json({ error: "Email já cadastrado" });
     }
 
+    const senhaHash = await bcrypt.hash(senha, 10);
+
     const user = await User.create({
       nome,
       email,
-      senha,
+      senha: senhaHash,
       perfil,
       AgenciaId,
     });
@@ -107,6 +110,17 @@ module.exports = {
 
     if (!user) {
       return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    // 🔐 Impede exclusão do próprio admin
+    if (user.perfil === "admin") {
+      const totalAdmins = await User.count({ where: { perfil: "admin" } });
+
+      if (totalAdmins <= 1) {
+        return res.status(400).json({
+          error: "Não é permitido excluir o último administrador do sistema",
+        });
+      }
     }
 
     await user.destroy();

@@ -5,6 +5,8 @@ const { sequelize, User } = require("./models"); // Importamos o User aqui em ci
 const importRoutes = require("./routes/import.routes");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const agenciaRoutes = require("./routes/agencia.routes");
+const userRoutes = require("./routes/user.routes");
 
 require("dotenv").config(); // Garante que as variáveis do .env sejam lidas
 
@@ -29,6 +31,8 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/import", importRoutes);
+app.use("/agencias", agenciaRoutes);
+app.use("/users", userRoutes);
 
 // Função para criar o Administrador Inicial
 async function seedAdmin() {

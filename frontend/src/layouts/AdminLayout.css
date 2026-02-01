@@ -1,0 +1,81 @@
+/* RESET BÁSICO */
+* {
+  box-sizing: border-box;
+}
+
+/* CONTAINER GERAL */
+.admin-container {
+  display: flex;
+  height: 100vh; /* ocupa a tela inteira */
+  background-color: #f4f6f8;
+  font-family: Poppins, Calibri, sans-serif;
+}
+
+/* MENU LATERAL */
+.admin-sidebar {
+  width: 240px;
+  background-color: #0b3c5d; /* azul institucional */
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+/* LOGO / TÍTULO */
+.admin-sidebar .logo {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+/* MENU */
+.admin-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* LINKS DO MENU */
+.admin-sidebar nav a {
+  color: #ffffff;
+  text-decoration: none;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+/* HOVER */
+.admin-sidebar nav a:hover {
+  background-color: #145a86;
+}
+
+/* LINK ATIVO */
+.admin-sidebar nav a.active {
+  background-color: #1f78b4;
+  font-weight: bold;
+}
+
+/* BOTÃO SAIR */
+.admin-sidebar .logout {
+  margin-top: auto; /* empurra para o final */
+  padding: 10px;
+  background-color: #c0392b;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.admin-sidebar .logout:hover {
+  background-color: #a93226;
+}
+
+/* CONTEÚDO */
+.admin-content {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+}

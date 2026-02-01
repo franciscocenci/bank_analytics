@@ -1,13 +1,16 @@
-export default function PrivateRoute({ children }) {
-  const token = localStorage.getItem("token");
-  const perfil = localStorage.getItem("perfil");
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
-  if (!token) {
-    window.location.href = "/";
-    return null;
+export default function PrivateRoute({ children, adminOnly = false }) {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+
+  if (!user) {
+    return <Navigate to="/" replace />;
   }
 
-  if (perfil !== "admin") {
+  if (adminOnly && user.perfil !== "admin") {
     return <p>Acesso restrito</p>;
   }
 

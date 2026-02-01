@@ -1,0 +1,31 @@
+.config-container {
+  display: flex;
+  height: 100%;
+}
+
+.config-sidebar {
+  width: 200px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.config-sidebar a {
+  text-decoration: none;
+  padding: 10px;
+  border-radius: 4px;
+  color: #333;
+}
+
+.config-sidebar a.active {
+  background: #1e4f7a;
+  color: white;
+}
+
+.config-content {
+  flex: 1;
+  padding: 20px;
+}

@@ -1,19 +1,44 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
-import Importacao from "./pages/admin/Importacao";
+
 import PrivateRoute from "./routes/PrivateRoute";
+import AdminLayout from "./layouts/AdminLayout";
+
+import ConfiguracoesLayout from "./pages/admin/configuracoes/ConfiguracoesLayout";
+import Importacao from "./pages/admin/configuracoes/Importacao";
+import Agencias from "./pages/admin/configuracoes/Agencias";
+import Usuarios from "./pages/admin/configuracoes/Usuarios";
+import Periodos from "./pages/admin/configuracoes/Periodos";
 
 export default function App() {
-  const path = window.location.pathname;
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Login */}
+        <Route path="/login" element={<Login />} />
 
-  if (path === "/") return <Login />;
+        {/* Área administrativa */}
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute adminOnly>
+              <AdminLayout />
+            </PrivateRoute>
+          }
+        >
+          <Route path="dashboard" element={<h1>Dashboard</h1>} />
 
-  if (path === "/admin") {
-    return (
-      <PrivateRoute>
-        <Importacao />
-      </PrivateRoute>
-    );
-  }
+          <Route path="configuracoes" element={<ConfiguracoesLayout />}>
+            <Route path="importacao" element={<Importacao />} />
+            <Route path="agencias" element={<Agencias />} />
+            <Route path="usuarios" element={<Usuarios />} />
+            <Route path="periodos" element={<Periodos />} />
+          </Route>
+        </Route>
 
-  return <Login />;
+        {/* Fallback */}
+        <Route path="*" element={<Login />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
