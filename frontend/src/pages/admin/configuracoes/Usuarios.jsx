@@ -29,6 +29,15 @@ export default function Usuarios() {
   }
 
   async function salvarUsuario() {
+    if (!nome || !email || !senha || !perfil || !agenciaId) {
+      alert("Preencha todos os campos");
+      return;
+    }
+
+    if (senha.length < 6) {
+      alert("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
     try {
       await api.post("/users", {
         nome,
@@ -51,6 +60,17 @@ export default function Usuarios() {
     }
   }
 
+  async function excluirUsuario(id) {
+    if (!window.confirm("Deseja realmente excluir este usuário?")) return;
+
+    try {
+      await api.delete(`/users/${id}`);
+      carregar(); // recarrega a lista
+    } catch (err) {
+      alert(err.response?.data?.error || "Erro ao excluir usuário");
+    }
+  }
+
   useEffect(() => {
     carregar();
     carregarAgencias();
@@ -66,48 +86,67 @@ export default function Usuarios() {
         <div style={{ margin: "20px 0" }}>
           <h3>Novo Usuário</h3>
 
-          <input
-            placeholder="Nome"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-          />
-
-          <input
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <input
-            type="password"
-            placeholder="Senha"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-          />
-
-          <select value={perfil} onChange={(e) => setPerfil(e.target.value)}>
-            <option value="usuario">Usuário</option>
-            <option value="gerente">Gerente</option>
-            <option value="admin">Admin</option>
-          </select>
-
-          <select
-            value={agenciaId}
-            onChange={(e) => setAgenciaId(e.target.value)}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault(); // impede reload da página
+              salvarUsuario();
+            }}
           >
-            <option value="">Selecione a agência</option>
-            {agencias.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.codigo} - {a.nome}
-              </option>
-            ))}
-          </select>
+            <input
+              placeholder="Nome"
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              required
+            />
 
-          <br />
-          <br />
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
 
-          <button onClick={salvarUsuario}>Salvar</button>
-          <button onClick={() => setCriando(false)}>Cancelar</button>
+            <input
+              type="password"
+              placeholder="Senha"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              required
+            />
+
+            <select
+              value={perfil}
+              onChange={(e) => setPerfil(e.target.value)}
+              required
+            >
+              <option value="usuario">Usuário</option>
+              <option value="gerente">Gerente</option>
+              <option value="admin">Admin</option>
+            </select>
+
+            <select
+              value={agenciaId}
+              onChange={(e) => setAgenciaId(e.target.value)}
+              required
+            >
+              <option value="">Selecione uma agência</option>
+
+              {agencias.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nome}
+                </option>
+              ))}
+            </select>
+
+            <br />
+            <br />
+
+            <button type="submit">Salvar</button>
+            <button type="button" onClick={() => setCriando(false)}>
+              Cancelar
+            </button>
+          </form>
         </div>
       )}
 
@@ -140,7 +179,7 @@ export default function Usuarios() {
                     <button onClick={() => alert("editar depois")}>
                       Editar
                     </button>
-                    <button onClick={() => alert("excluir depois")}>
+                    <button onClick={() => excluirUsuario(u.id)}>
                       Excluir
                     </button>
                   </td>

@@ -30,6 +30,7 @@ module.exports = {
         senha: senhaHash,
         perfil,
         AgenciaId,
+        trocaSenha: false, // 👈 não é senha provisória
       });
 
       return res.status(201).json({
@@ -99,6 +100,73 @@ module.exports = {
       console.log("------------------------------------------");
 
       return res.json({
+        trocaSenha: user.trocaSenha,
+        user: {
+          id: user.id,
+          nome: user.nome,
+          email: user.email,
+          perfil: user.perfil,
+        },
+        token: user.trocaSenha ? null : token,
+      });
+    } catch (err) {
+      // 🔍 LOG 4: Se o sistema travar, por que foi?
+      console.error("💥 ERRO NO PROCESSO DE LOGIN:");
+      console.error(err);
+      return res
+        .status(500)
+        .json({ error: "Erro interno no servidor", details: err.message });
+    }
+  },
+
+  async trocarSenha(req, res) {
+    try {
+      const { email, senhaAtual, novaSenha } = req.body;
+
+      if (!email || !senhaAtual || !novaSenha) {
+        return res.status(400).json({
+          error: "Preencha todos os campos",
+        });
+      }
+
+      if (novaSenha.length < 6) {
+        return res.status(400).json({
+          error: "A nova senha deve ter no mínimo 6 caracteres",
+        });
+      }
+
+      const user = await User.findOne({ where: { email } });
+
+      if (!user) {
+        return res.status(404).json({ error: "Usuário não encontrado" });
+      }
+
+      const senhaValida = await bcrypt.compare(senhaAtual, user.senha);
+
+      if (!senhaValida) {
+        return res.status(401).json({ error: "Senha atual inválida" });
+      }
+
+      const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
+
+      await user.update({
+        senha: novaSenhaHash,
+        trocaSenha: false,
+      });
+
+      // 🔐 Gera token automaticamente após trocar senha
+      const token = jwt.sign(
+        {
+          id: user.id,
+          perfil: user.perfil,
+          agenciaId: user.AgenciaId,
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1d" },
+      );
+
+      return res.json({
+        message: "Senha alterada com sucesso",
         user: {
           id: user.id,
           nome: user.nome,
@@ -108,12 +176,10 @@ module.exports = {
         token,
       });
     } catch (err) {
-      // 🔍 LOG 4: Se o sistema travar, por que foi?
-      console.error("💥 ERRO NO PROCESSO DE LOGIN:");
-      console.error(err);
-      return res
-        .status(500)
-        .json({ error: "Erro interno no servidor", details: err.message });
+      console.error("❌ ERRO AO TROCAR SENHA:", err);
+      return res.status(500).json({
+        error: "Erro ao trocar senha",
+      });
     }
   },
 };

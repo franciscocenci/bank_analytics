@@ -20,17 +20,37 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // 🔐 Login
   async function login(email, senha) {
-    const res = await api.post("/auth/login", { email, senha });
+    try {
+      const res = await api.post("/auth/login", { email, senha });
 
-    const { token, user } = res.data;
+      console.log("Resposta do login:", res.data);
 
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+      // 🚨 CASO 1: senha provisória
+      if (res.data.trocaSenha) {
+        return {
+          trocaSenha: true,
+          user: res.data.user,
+        };
+      }
 
-    api.defaults.headers.Authorization = `Bearer ${token}`;
-    setUser(user);
+      // ✅ CASO 2: login normal
+      const { token, user } = res.data;
+
+      if (!token) {
+        throw new Error("Token não recebido");
+      }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      setUser(user);
+
+      return { trocaSenha: false };
+    } catch (err) {
+      console.error("ERRO LOGIN:", err.response?.data || err.message);
+      throw err;
+    }
   }
 
   // 🚪 Logout

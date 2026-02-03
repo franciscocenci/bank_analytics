@@ -17,7 +17,16 @@ export default function Login() {
 
     try {
       const res = await login(email, senha);
-      console.log("LOGIN OK:", res);
+
+      // 🔐 Caso precise trocar senha
+      if (res.trocaSenha) {
+        navigate("/trocar-senha", {
+          state: { email },
+        });
+        return;
+      }
+
+      // ✅ Login normal
       navigate("/admin/dashboard");
     } catch (err) {
       console.error("ERRO LOGIN:", err.response?.data);

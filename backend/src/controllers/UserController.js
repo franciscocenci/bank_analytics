@@ -5,6 +5,18 @@ module.exports = {
   async create(req, res) {
     const { nome, email, senha, perfil, AgenciaId } = req.body;
 
+    if (!nome || !email || !senha || !perfil || !AgenciaId) {
+      return res.status(400).json({
+        error: "Todos os campos são obrigatórios",
+      });
+    }
+
+    if (senha.length < 6) {
+      return res.status(400).json({
+        error: "Senha deve ter no mínimo 6 caracteres",
+      });
+    }
+
     // Regras de perfil
     if (req.userPerfil === "gerente" && perfil !== "usuario") {
       return res.status(403).json({
@@ -31,6 +43,7 @@ module.exports = {
       senha: senhaHash,
       perfil,
       AgenciaId,
+      trocaSenha: true, // 👈 senha provisória
     });
 
     return res.status(201).json({
@@ -121,6 +134,13 @@ module.exports = {
           error: "Não é permitido excluir o último administrador do sistema",
         });
       }
+    }
+
+    // 🔐 Impede autoexclusão
+    if (Number(id) === req.userId) {
+      return res.status(400).json({
+        error: "Administrador não pode se excluir",
+      });
     }
 
     await user.destroy();

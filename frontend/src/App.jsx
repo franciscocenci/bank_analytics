@@ -9,6 +9,7 @@ import Importacao from "./pages/admin/configuracoes/Importacao";
 import Agencias from "./pages/admin/configuracoes/Agencias";
 import Usuarios from "./pages/admin/configuracoes/Usuarios";
 import Periodos from "./pages/admin/configuracoes/Periodos";
+import TrocarSenha from "./pages/TrocarSenha";
 
 export default function App() {
   return (
@@ -35,6 +36,8 @@ export default function App() {
             <Route path="periodos" element={<Periodos />} />
           </Route>
         </Route>
+        {/* Trocar senha */}
+        <Route path="/trocar-senha" element={<TrocarSenha />} />
 
         {/* Fallback */}
         <Route path="*" element={<Login />} />

@@ -6,13 +6,21 @@ module.exports = (sequelize) => {
   User.init(
     {
       nome: DataTypes.STRING,
+
       email: {
         type: DataTypes.STRING,
         allowNull: false,
         unique: true,
       },
+
       senha: DataTypes.STRING,
+
       perfil: DataTypes.STRING,
+
+      trocaSenha: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
     },
     {
       sequelize,
