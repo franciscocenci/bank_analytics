@@ -7,30 +7,31 @@ module.exports = {
   async register(req, res) {
     try {
       const { nome, email, senha, perfil, AgenciaId } = req.body;
+      const agenciaId = AgenciaId;
 
-      // ✅ 1. VERIFICA SE A AGÊNCIA EXISTE
-      const agencia = await Agencia.findByPk(AgenciaId);
+      // Validate agency exists.
+      const agencia = await Agencia.findByPk(agenciaId);
       if (!agencia) {
         return res.status(400).json({ error: "Agência não encontrada" });
       }
 
-      // ✅ 2. VERIFICA SE USUÁRIO JÁ EXISTE
+      // Check for existing user.
       const userExists = await User.findOne({ where: { email } });
       if (userExists) {
         return res.status(400).json({ error: "Usuário já existe" });
       }
 
-      // 🔐 3. CRIA O HASH DA SENHA
+      // Hash password before storing.
       const senhaHash = await bcrypt.hash(senha, 10);
 
-      // ✅ 4. CRIA O USUÁRIO
+      // Create user with the provided profile.
       const user = await User.create({
         nome,
         email,
         senha: senhaHash,
         perfil,
-        AgenciaId,
-        trocaSenha: false, // 👈 não é senha provisória
+        agenciaId,
+        trocaSenha: false, // Not a temporary password.
       });
 
       return res.status(201).json({
@@ -40,7 +41,7 @@ module.exports = {
         perfil: user.perfil,
       });
     } catch (err) {
-      console.error("❌ ERRO NO REGISTER:");
+      console.error("Erro no registro:");
       console.error(err);
       return res.status(500).json({
         error: "Erro ao cadastrar usuário",
@@ -53,51 +54,28 @@ module.exports = {
     try {
       const { email, senha } = req.body;
 
-      // 🔍 LOG 1: O que veio do Frontend?
-      console.log("------------------------------------------");
-      console.log("📥 Tentativa de Login recebida:");
-      console.log("E-mail digitado:", email);
-      console.log("Senha digitada:", senha ? "****** (preenchida)" : "VAZIA");
-
       const user = await User.findOne({ where: { email } });
 
-      // 🔍 LOG 2: O usuário foi encontrado no banco?
       if (!user) {
-        console.log("❌ Resultado: Usuário não encontrado no banco de dados.");
         return res.status(401).json({ error: "E-mail ou senha inválidos" });
       }
-
-      console.log("✅ Resultado: Usuário encontrado!", user.nome);
 
       const senhaValida = await bcrypt.compare(senha, user.senha);
 
-      // 🔍 LOG 3: A senha bateu?
       if (!senhaValida) {
-        console.log("❌ Resultado: Senha incorreta.");
         return res.status(401).json({ error: "E-mail ou senha inválidos" });
       }
 
-      console.log("🔑 Resultado: Senha validada com sucesso!");
-
-      // Verifica se a chave secreta existe
-      if (!process.env.JWT_SECRET) {
-        console.log(
-          "⚠️ ERRO CRÍTICO: Variável JWT_SECRET não definida no .env!",
-        );
-      }
 
       const token = jwt.sign(
         {
           id: user.id,
           perfil: user.perfil,
-          agenciaId: user.AgenciaId,
+          agenciaId: user.agenciaId,
         },
         process.env.JWT_SECRET,
         { expiresIn: "1d" },
       );
-
-      console.log("🚀 Login realizado! Token gerado.");
-      console.log("------------------------------------------");
 
       return res.json({
         trocaSenha: user.trocaSenha,
@@ -106,12 +84,12 @@ module.exports = {
           nome: user.nome,
           email: user.email,
           perfil: user.perfil,
+          agenciaId: user.agenciaId,
         },
         token: user.trocaSenha ? null : token,
       });
     } catch (err) {
-      // 🔍 LOG 4: Se o sistema travar, por que foi?
-      console.error("💥 ERRO NO PROCESSO DE LOGIN:");
+      console.error("Erro no processo de login:");
       console.error(err);
       return res
         .status(500)
@@ -129,6 +107,7 @@ module.exports = {
         });
       }
 
+      // Additional validations for password update.
       if (novaSenha.length < 6) {
         return res.status(400).json({
           error: "A nova senha deve ter no mínimo 6 caracteres",
@@ -143,10 +122,17 @@ module.exports = {
 
       const senhaValida = await bcrypt.compare(senhaAtual, user.senha);
 
+      // Validate current password.
       if (!senhaValida) {
         return res.status(401).json({ error: "Senha atual inválida" });
       }
 
+      // Ensure the new password is different.
+      if (senhaAtual === novaSenha) {
+        return res.status(400).json({
+          error: "A nova senha não pode ser igual à senha atual",
+        });
+      }
       const novaSenhaHash = await bcrypt.hash(novaSenha, 10);
 
       await user.update({
@@ -154,12 +140,12 @@ module.exports = {
         trocaSenha: false,
       });
 
-      // 🔐 Gera token automaticamente após trocar senha
+      // Generate a new token after a successful password change.
       const token = jwt.sign(
         {
           id: user.id,
           perfil: user.perfil,
-          agenciaId: user.AgenciaId,
+          agenciaId: user.agenciaId,
         },
         process.env.JWT_SECRET,
         { expiresIn: "1d" },
@@ -172,11 +158,12 @@ module.exports = {
           nome: user.nome,
           email: user.email,
           perfil: user.perfil,
+          agenciaId: user.agenciaId,
         },
         token,
       });
     } catch (err) {
-      console.error("❌ ERRO AO TROCAR SENHA:", err);
+      console.error("Erro ao trocar senha:", err);
       return res.status(500).json({
         error: "Erro ao trocar senha",
       });

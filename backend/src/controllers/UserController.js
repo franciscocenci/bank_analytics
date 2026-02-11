@@ -1,11 +1,13 @@
-const { User } = require("../models");
+const { User, Agencia } = require("../models");
 const bcrypt = require("bcrypt");
 
 module.exports = {
   async create(req, res) {
-    const { nome, email, senha, perfil, AgenciaId } = req.body;
+    const { nome, email, senha, perfil, AgenciaId, agenciaId: agenciaIdBody } =
+      req.body;
+    const agenciaId = agenciaIdBody || AgenciaId;
 
-    if (!nome || !email || !senha || !perfil || !AgenciaId) {
+    if (!nome || !email || !senha || !perfil || !agenciaId) {
       return res.status(400).json({
         error: "Todos os campos são obrigatórios",
       });
@@ -17,7 +19,7 @@ module.exports = {
       });
     }
 
-    // Regras de perfil
+    // Profile-based creation rules.
     if (req.userPerfil === "gerente" && perfil !== "usuario") {
       return res.status(403).json({
         error: "Gerente só pode criar usuário comum",
@@ -42,8 +44,8 @@ module.exports = {
       email,
       senha: senhaHash,
       perfil,
-      AgenciaId,
-      trocaSenha: true, // 👈 senha provisória
+      agenciaId,
+      trocaSenha: true, // Temporary password required.
     });
 
     return res.status(201).json({
@@ -62,15 +64,32 @@ module.exports = {
     const where = {};
 
     if (req.userPerfil === "gerente") {
-      where.AgenciaId = req.userAgenciaId;
+      where.agenciaId = req.userAgenciaId;
     }
 
-    const users = await User.findAll({
+    /* const users = await User.findAll({
       where,
-      attributes: ["id", "nome", "email", "perfil"],
+      attributes: ["id", "nome", "email", "perfil", "AgenciaId"],
+      include: [
+        {
+          association: "agencia",
+          attributes: ["id", "nome"],
+        },
+      ],
+    }); */
+
+    const usuarios = await User.findAll({
+      where,
+      include: [
+        {
+          model: Agencia,
+          as: "agencia",
+          attributes: ["id", "nome"],
+        },
+      ],
     });
 
-    return res.json(users);
+    return res.json(usuarios);
   },
 
   async show(req, res) {
@@ -92,24 +111,93 @@ module.exports = {
   },
 
   async update(req, res) {
-    const { id } = req.params;
-
-    if (req.userPerfil !== "admin" && req.userId !== id) {
-      return res.status(403).json({ error: "Sem permissão" });
+    if (req.userPerfil !== "admin") {
+      return res
+        .status(403)
+        .json({ error: "Somente admin pode editar usuários" });
     }
 
+    const { id } = req.params;
+    const { nome, email, perfil, AgenciaId, agenciaId: agenciaIdBody, senha } =
+      req.body;
+    const agenciaId = agenciaIdBody || AgenciaId;
+
     const user = await User.findByPk(id);
+
     if (!user) {
       return res.status(404).json({ error: "Usuário não encontrado" });
     }
 
-    await user.update(req.body);
+    // Prevent removing the last admin.
+    if (user.perfil === "admin" && perfil !== "admin") {
+      const totalAdmins = await User.count({
+        where: { perfil: "admin" },
+      });
+
+      if (totalAdmins <= 1) {
+        return res.status(400).json({
+          error: "Não é permitido remover o último administrador",
+        });
+      }
+    }
+
+    await user.update({
+      nome,
+      perfil,
+      agenciaId,
+    });
 
     return res.json({
       id: user.id,
       nome: user.nome,
       email: user.email,
       perfil: user.perfil,
+    });
+  },
+
+  async resetSenha(req, res) {
+    // Only admins can reset passwords.
+    if (req.userPerfil !== "admin") {
+      return res.status(403).json({
+        error: "Somente admin pode resetar senha",
+      });
+    }
+
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        error: "Usuário não encontrado",
+      });
+    }
+
+    // Prevent reset of the last admin.
+    if (user.perfil === "admin") {
+      const totalAdmins = await User.count({
+        where: { perfil: "admin" },
+      });
+
+      if (totalAdmins <= 1) {
+        return res.status(400).json({
+          error: "Não é permitido resetar a senha do último administrador",
+        });
+      }
+    }
+
+    // Generate a temporary password.
+    const senhaProvisoria = "123456"; // depois podemos melhorar isso
+    const senhaHash = await bcrypt.hash(senhaProvisoria, 10);
+
+    await user.update({
+      senha: senhaHash,
+      trocaSenha: true,
+    });
+
+    return res.json({
+      message: "Senha resetada com sucesso",
+      senhaProvisoria, // Consider hiding this in the UI.
     });
   },
 
@@ -125,7 +213,7 @@ module.exports = {
       return res.status(404).json({ error: "Usuário não encontrado" });
     }
 
-    // 🔐 Impede exclusão do próprio admin
+    // Prevent deleting the last admin.
     if (user.perfil === "admin") {
       const totalAdmins = await User.count({ where: { perfil: "admin" } });
 
@@ -136,7 +224,7 @@ module.exports = {
       }
     }
 
-    // 🔐 Impede autoexclusão
+    // Prevent self-deletion.
     if (Number(id) === req.userId) {
       return res.status(400).json({
         error: "Administrador não pode se excluir",

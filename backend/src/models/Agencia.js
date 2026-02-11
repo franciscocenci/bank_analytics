@@ -1,8 +1,14 @@
 const { Model, DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  class Agencia extends Model {}
-
+  class Agencia extends Model {
+    static associate(models) {
+      Agencia.hasMany(models.User, {
+        foreignKey: "agenciaId",
+        as: "usuarios",
+      });
+    }
+  }
   Agencia.init(
     {
       nome: {
@@ -40,5 +46,19 @@ module.exports = (sequelize) => {
     },
   );
 
+  // Model associations.
+  Agencia.associate = (models) => {
+    // Agency users.
+    Agencia.hasMany(models.User, {
+      foreignKey: "agenciaId",
+      as: "usuarios",
+    });
+
+    // Agency sales records.
+    Agencia.hasMany(models.VendaMeta, {
+      foreignKey: "AgenciaId",
+      as: "vendas",
+    });
+  };
   return Agencia;
 };

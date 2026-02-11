@@ -1,9 +1,20 @@
 const xlsx = require("xlsx");
-const { VendaMeta, Agencia, sequelize } = require("../models");
+const { VendaMeta, Agencia, Produto, sequelize } = require("../models");
+
+function excelDateToISO(excelDate) {
+  if (!excelDate) return null;
+
+  // Excel epoch starts at 1899-12-30.
+  const utc_days = Math.floor(excelDate - 25569);
+  const utc_value = utc_days * 86400;
+  const date_info = new Date(utc_value * 1000);
+
+  return date_info.toISOString().split("T")[0]; // YYYY-MM-DD
+}
 
 module.exports = {
   async importarMetas(req, res) {
-    // 🔐 Garantia extra
+    // Ensure only admins can import data.
     if (req.userPerfil !== "admin") {
       return res.status(403).json({ error: "Apenas admin pode importar" });
     }
@@ -17,7 +28,7 @@ module.exports = {
     try {
       const userId = req.userId;
 
-      // 📖 Ler arquivo do upload (buffer)
+      // Read uploaded file from memory.
       const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = xlsx.utils.sheet_to_json(sheet);
@@ -36,12 +47,14 @@ module.exports = {
       };
 
       for (let i = 0; i < rows.length; i++) {
-        const linhaExcel = i + 2; // cabeçalho é linha 1
+        const linhaExcel = i + 2; // Header is row 1.
         const row = rows[i];
 
         const { data_ref, cod_ag, nome_ag, produto, meta, vendas } = row;
+        const nomeProduto = String(produto).trim().toUpperCase();
+        const dataConvertida = excelDateToISO(data_ref);
 
-        // 🔎 Validação mínima
+        // Minimal required fields validation.
         if (!data_ref || !cod_ag || !produto) {
           relatorio.erros.push({
             linha: linhaExcel,
@@ -51,16 +64,28 @@ module.exports = {
           continue;
         }
 
-        // 🏦 Normaliza código da agência (sempre STRING com 4 dígitos)
+        let produtoDb = await Produto.findOne({
+          where: { nome: nomeProduto },
+          transaction,
+        });
+
+        if (!produtoDb) {
+          produtoDb = await Produto.create(
+            { nome: nomeProduto },
+            { transaction },
+          );
+        }
+
+        // Normalize agency code to a 4-digit string.
         const codigoAgencia = String(cod_ag).padStart(4, "0");
 
-        // 🔍 Busca agência
+        // Find agency by code.
         let agencia = await Agencia.findOne({
           where: { codigo: codigoAgencia },
           transaction,
         });
 
-        // 🆕 AUTOCADASTRO DE AGÊNCIA
+        // Create agency if it does not exist.
         if (!agencia) {
           agencia = await Agencia.create(
             {
@@ -72,40 +97,17 @@ module.exports = {
           relatorio.criadas++;
         }
 
-        // 🔁 Verifica se já existe venda (data + produto + agência)
-        const existente = await VendaMeta.findOne({
-          where: {
-            data: data_ref,
-            produto,
-            AgenciaId: agencia.id,
+        await VendaMeta.upsert(
+          {
+            data: dataConvertida,
+            produtoId: produtoDb.id,
+            valorMeta: Number(meta) || 0,
+            valorRealizado: Number(vendas) || 0,
+            agenciaId: agencia.id,
+            UserId: userId,
           },
-          transaction,
-        });
-
-        if (existente) {
-          await existente.update(
-            {
-              valorMeta: Number(meta) || 0,
-              valorRealizado: Number(vendas) || 0,
-              UserId: userId,
-            },
-            { transaction },
-          );
-          relatorio.atualizados++;
-        } else {
-          await VendaMeta.create(
-            {
-              data: data_ref,
-              produto,
-              valorMeta: Number(meta) || 0,
-              valorRealizado: Number(vendas) || 0,
-              AgenciaId: agencia.id,
-              UserId: userId,
-            },
-            { transaction },
-          );
-          relatorio.inseridos++;
-        }
+          { transaction },
+        );
       }
 
       await transaction.commit();
@@ -116,7 +118,7 @@ module.exports = {
       });
     } catch (err) {
       await transaction.rollback();
-      console.error("❌ Erro no upload:", err);
+      console.error("Erro no upload:", err);
 
       return res.status(500).json({
         error: "Erro ao importar planilha",

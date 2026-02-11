@@ -7,14 +7,19 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔁 Restaura sessão (apenas se existir)
+  // Restore session when a token exists.
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userStorage = localStorage.getItem("user");
 
     if (token && userStorage) {
       api.defaults.headers.Authorization = `Bearer ${token}`;
-      setUser(JSON.parse(userStorage));
+      const parsedUser = JSON.parse(userStorage);
+      if (parsedUser && parsedUser.AgenciaId && !parsedUser.agenciaId) {
+        parsedUser.agenciaId = parsedUser.AgenciaId;
+        delete parsedUser.AgenciaId;
+      }
+      setUser(parsedUser);
     }
 
     setLoading(false);
@@ -26,7 +31,7 @@ export function AuthProvider({ children }) {
 
       console.log("Resposta do login:", res.data);
 
-      // 🚨 CASO 1: senha provisória
+      // Temporary password flow.
       if (res.data.trocaSenha) {
         return {
           trocaSenha: true,
@@ -34,11 +39,16 @@ export function AuthProvider({ children }) {
         };
       }
 
-      // ✅ CASO 2: login normal
+      // Normal login flow.
       const { token, user } = res.data;
 
       if (!token) {
         throw new Error("Token não recebido");
+      }
+
+      if (user && user.AgenciaId && !user.agenciaId) {
+        user.agenciaId = user.AgenciaId;
+        delete user.AgenciaId;
       }
 
       localStorage.setItem("token", token);
@@ -53,7 +63,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // 🚪 Logout
+  // Clear session on logout.
   function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");

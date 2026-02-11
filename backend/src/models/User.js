@@ -17,6 +17,11 @@ module.exports = (sequelize) => {
 
       perfil: DataTypes.STRING,
 
+      agenciaId: {
+        type: DataTypes.INTEGER,
+        field: "AgenciaId",
+      },
+
       trocaSenha: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
@@ -28,6 +33,12 @@ module.exports = (sequelize) => {
       tableName: "Users",
     },
   );
+
+  // Model associations.
+  User.associate = (models) => {
+    User.belongsTo(models.Agencia, { foreignKey: "agenciaId", as: "agencia" });
+    User.hasMany(models.VendaMeta, { foreignKey: "UserId", as: "vendas" });
+  };
 
   return User;
 };

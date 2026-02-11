@@ -8,8 +8,8 @@ const ImportController = require("../controllers/ImportController");
 router.post(
   "/vendas",
   auth,
-  authorize(["admin"]), // 🔐 SOMENTE ADMIN
-  upload.single("file"), // 📎 arquivo vem no campo "file"
+  authorize(["admin"]), // Admins only.
+  upload.single("file"), // File is expected in the "file" field.
   ImportController.importarMetas,
 );
 

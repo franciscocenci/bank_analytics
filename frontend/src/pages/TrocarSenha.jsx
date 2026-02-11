@@ -16,6 +16,16 @@ export default function TrocarSenha() {
     e.preventDefault();
     setErro("");
 
+    if (novaSenha.length < 6) {
+      setErro("A nova senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+
+    if (senhaAtual === novaSenha) {
+      setErro("A nova senha não pode ser igual à senha atual");
+      return;
+    }
+
     try {
       const res = await api.post("/auth/trocar-senha", {
         email,

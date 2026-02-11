@@ -1,15 +1,14 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
-
 import PrivateRoute from "./routes/PrivateRoute";
 import AdminLayout from "./layouts/AdminLayout";
-
 import ConfiguracoesLayout from "./pages/admin/configuracoes/ConfiguracoesLayout";
 import Importacao from "./pages/admin/configuracoes/Importacao";
 import Agencias from "./pages/admin/configuracoes/Agencias";
 import Usuarios from "./pages/admin/configuracoes/Usuarios";
 import Periodos from "./pages/admin/configuracoes/Periodos";
 import TrocarSenha from "./pages/TrocarSenha";
+import Dashboard from "./pages/Dashboard";
 
 export default function App() {
   return (
@@ -22,14 +21,21 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <PrivateRoute adminOnly>
+            <PrivateRoute>
               <AdminLayout />
             </PrivateRoute>
           }
         >
-          <Route path="dashboard" element={<h1>Dashboard</h1>} />
+          <Route path="dashboard" element={<Dashboard />} />
 
-          <Route path="configuracoes" element={<ConfiguracoesLayout />}>
+          <Route
+            path="configuracoes"
+            element={
+              <PrivateRoute adminOnly>
+                <ConfiguracoesLayout />
+              </PrivateRoute>
+            }
+          >
             <Route path="importacao" element={<Importacao />} />
             <Route path="agencias" element={<Agencias />} />
             <Route path="usuarios" element={<Usuarios />} />

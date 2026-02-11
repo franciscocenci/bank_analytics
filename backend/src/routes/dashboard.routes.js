@@ -1,31 +1,30 @@
 const express = require("express");
-const DashboardController = require("../controllers/DashboardController");
-const authMiddleware = require("../middlewares/auth");
-
 const router = express.Router();
 
-router.get(
-  "/evolucao-comparativa",
-  authMiddleware,
-  DashboardController.evolucaoComparativa,
-);
+const auth = require("../middlewares/auth");
+const DashboardController = require("../controllers/DashboardController");
 
-router.get(
-  "/ranking-agencias",
-  authMiddleware,
-  DashboardController.rankingAgencias,
-);
+// todas rotas exigem login
+router.use(auth);
 
-router.get(
-  "/ranking-agencias-por-percentual",
-  authMiddleware,
-  DashboardController.rankingAgenciasPorPercentual,
-);
+/* ================= ROTAS REAIS DO DASHBOARD ================= */
 
-router.get(
-  "/evolucao-ranking-agencia",
-  authMiddleware,
-  DashboardController.evolucaoRankingAgencia,
-);
+// cards principais
+router.get("/resumo-atual", DashboardController.resumoAtual);
+
+// ranking de agências (valor realizado)
+router.get("/ranking-agencias", DashboardController.rankingAgencias);
+
+// produtos ativos
+router.get("/produtos-ativos", DashboardController.produtosAtivos);
+
+// evolução de vendas (gráfico)
+router.get("/evolucao-vendas", DashboardController.evolucaoVendas);
+
+// compatibilidade com rota antiga
+router.get("/evolucao-comparativa", DashboardController.evolucaoVendas);
+
+// períodos disponíveis (somente leitura)
+router.get("/periodos", DashboardController.listarPeriodos);
 
 module.exports = router;

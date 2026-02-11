@@ -1,20 +1,21 @@
 const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
-const { sequelize, User } = require("./models"); // Importamos o User aqui em cima
+const { sequelize, User } = require("./models");
 const importRoutes = require("./routes/import.routes");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const agenciaRoutes = require("./routes/agencia.routes");
 const userRoutes = require("./routes/user.routes");
+const periodoRoutes = require("./routes/periodo.routes");
 
-require("dotenv").config(); // Garante que as variáveis do .env sejam lidas
+require("dotenv").config();
 
 const app = express();
 
 app.use(
   cors({
-    origin: true, // Permite qualquer origem que venha do navegador
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -22,19 +23,20 @@ app.use(
 );
 app.use(express.json());
 
-// Rota de teste
+// Health check endpoint.
 app.get("/", (req, res) => {
-  res.send("API Bank Analytics rodando 🚀");
+  res.send("API Bank Analytics rodando");
 });
 
-// Rotas do sistema
+// API routes.
 app.use("/auth", authRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/import", importRoutes);
 app.use("/agencias", agenciaRoutes);
 app.use("/users", userRoutes);
+app.use("/periodos", periodoRoutes);
 
-// Função para criar o Administrador Inicial
+// Seed initial admin user if missing.
 async function seedAdmin() {
   try {
     const adminExists = await User.findOne({ where: { perfil: "admin" } });
@@ -52,37 +54,35 @@ async function seedAdmin() {
         perfil: "admin",
       });
 
-      console.log(
-        "🚀 Primeiro Administrador criado com sucesso usando dados do .env!",
-      );
+      console.log("Primeiro administrador criado usando dados do .env.");
     } else {
-      console.log("ℹ️ Administrador já existe no banco de dados.");
+      console.log("Administrador já existe no banco de dados.");
     }
   } catch (error) {
-    console.error("❌ Erro ao criar admin inicial:", error);
+    console.error("Erro ao criar admin inicial:", error);
   }
 }
 
-// Inicialização do Servidor (Ordem cronológica correta)
+// Server startup sequence.
 (async () => {
   try {
-    // 1. Conecta ao Banco
+    // Connect to the database.
     await sequelize.authenticate();
-    console.log("✅ Conectado ao PostgreSQL");
+    console.log("Conectado ao PostgreSQL");
 
-    // 2. Sincroniza as Tabelas (Cria elas se não existirem)
+    // Sync tables (create if missing).
     await sequelize.sync({ alter: true });
-    console.log("📦 Tabelas sincronizadas");
+    console.log("Tabelas sincronizadas");
 
-    // 3. AGORA SIM: Cria o Admin (Depois que a tabela já existe)
+    // Seed admin after tables exist.
     await seedAdmin();
 
-    // 4. Liga o servidor
+    // Start the HTTP server.
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+      console.log(`Servidor rodando na porta ${PORT}`);
     });
   } catch (err) {
-    console.error("❌ Erro ao iniciar servidor:", err);
+    console.error("Erro ao iniciar servidor:", err);
   }
 })();

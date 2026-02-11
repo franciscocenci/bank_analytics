@@ -1,419 +1,494 @@
-const { VendaMeta, Agencia, Sequelize } = require("../models");
-const { Op } = Sequelize;
+const {
+  VendaMeta,
+  Agencia,
+  Periodo,
+  Produto,
+  Sequelize,
+  sequelize,
+} = require("../models");
 
-module.exports = {
-  async evolucaoComparativa(req, res) {
-    try {
-      // 🔐 Dados do usuário logado (middleware)
-      const perfil = req.userPerfil;
-      const agenciaUsuarioId = req.userAgenciaId;
+const obterPeriodoAtual = require("../utils/periodoAtual");
+const { Op } = require("sequelize");
 
-      // 📥 Query params
-      const { ano, mes, produto, agenciaId, todasAgencias } = req.query;
+/* ---------------------------------------------------------
+Util
+--------------------------------------------------------- */
+function numeroSeguro(valor) {
+  if (valor === null || valor === undefined || isNaN(valor)) return 0;
+  return Number(valor);
+}
 
-      if (!ano || !mes) {
+/* ---------------------------------------------------------
+Helper: filtro por produto (JOIN correto)
+--------------------------------------------------------- */
+function includeProduto(produto) {
+  const include = {
+    model: Produto,
+    as: "produto",
+    attributes: [],
+  };
+
+  if (produto && produto !== "todos") {
+    include.where = { nome: produto };
+  }
+
+  return include;
+}
+
+function parseDateOnly(dateStr) {
+  if (!dateStr) return null;
+  return new Date(`${dateStr}T00:00:00Z`);
+}
+
+function formatDateOnly(date) {
+  if (!date) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+async function carregarPeriodo(periodoId) {
+  if (!periodoId) return null;
+  return Periodo.findByPk(periodoId);
+}
+
+async function obterPeriodoBase(periodoId) {
+  if (periodoId) {
+    return carregarPeriodo(periodoId);
+  }
+  return obterPeriodoAtual();
+}
+
+async function vendasPorDia(periodo, whereBase, produto) {
+  const where = {
+    ...whereBase,
+    data: {
+      [Op.between]: [periodo.dataInicio, periodo.dataFim],
+    },
+  };
+
+  const vendas = await VendaMeta.findAll({
+    where,
+    include: [includeProduto(produto)],
+    attributes: [
+      [Sequelize.fn("DATE", Sequelize.col("data")), "dia"],
+      [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "totalDia"],
+    ],
+    group: [Sequelize.fn("DATE", Sequelize.col("data"))],
+    order: [[Sequelize.fn("DATE", Sequelize.col("data")), "ASC"]],
+    raw: true,
+  });
+
+  return vendas.map((v) => ({
+    dia: v.dia,
+    valor: Number(v.totalDia),
+  }));
+}
+
+async function obterUltimaData(periodo, whereBase) {
+  const where = {
+    ...whereBase,
+    data: {
+      [Op.between]: [periodo.dataInicio, periodo.dataFim],
+    },
+  };
+
+  return VendaMeta.max("data", { where });
+}
+
+async function obterUltimaDataProduto(periodo, whereBase, produto) {
+  const where = {
+    ...whereBase,
+    data: {
+      [Op.between]: [periodo.dataInicio, periodo.dataFim],
+    },
+  };
+
+  return VendaMeta.max("data", {
+    where,
+    include: [includeProduto(produto)],
+  });
+}
+
+/* =========================================================
+PRODUTOS ATIVOS DO PERÍODO
+========================================================= */
+async function produtosAtivos(req, res) {
+  try {
+    const { periodoId } = req.query;
+    const periodo = await obterPeriodoBase(periodoId);
+
+    if (!periodo) {
+      return res.status(404).json({ erro: "Nenhum período vigente" });
+    }
+
+    const produtos = await VendaMeta.findAll({
+      attributes: [[Sequelize.col("produto.nome"), "nome"]],
+      include: [
+        {
+          model: Produto,
+          as: "produto",
+          attributes: [],
+        },
+      ],
+      where: {
+        data: {
+          [Op.between]: [periodo.dataInicio, periodo.dataFim],
+        },
+      },
+      group: ["produto.nome"],
+      order: [[Sequelize.col("produto.nome"), "ASC"]],
+      raw: true,
+    });
+
+    return res.json(produtos.map((p) => p.nome));
+  } catch (err) {
+    console.error("Erro produtos ativos:", err);
+    return res.status(500).json({ erro: "Erro ao buscar produtos ativos" });
+  }
+}
+
+/* =========================================================
+RESUMO ATUAL
+========================================================= */
+async function resumoAtual(req, res) {
+  try {
+    const { periodoId, agenciaId } = req.query;
+    const periodo = await obterPeriodoBase(periodoId);
+
+    if (!periodo) {
+      return res.status(404).json({
+        error: "Nenhum período vigente encontrado para a data atual",
+      });
+    }
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const inicio = new Date(periodo.dataInicio);
+    const fim = new Date(periodo.dataFim);
+
+    const diasTotais = Math.ceil((fim - inicio) / (1000 * 60 * 60 * 24)) + 1;
+    const diasDecorridosBruto =
+      Math.ceil((hoje - inicio) / (1000 * 60 * 60 * 24)) + 1;
+    const diasDecorridos = Math.min(
+      Math.max(diasDecorridosBruto, 0),
+      diasTotais,
+    );
+    const diasRestantes = Math.max(diasTotais - diasDecorridos, 0);
+
+    const whereBase = {};
+
+    if (req.userPerfil !== "admin") {
+      if (!req.userAgenciaId) {
         return res.status(400).json({
-          error: "Informe ano e mês para comparação",
+          error: "Usuário sem agência vinculada",
         });
       }
+      whereBase.agenciaId = req.userAgenciaId;
+    } else if (agenciaId && agenciaId !== "todas") {
+      whereBase.agenciaId = agenciaId;
+    }
 
-      const anoBase = Number(ano);
-      const mesBase = Number(mes);
+    const ultimaData = await obterUltimaData(periodo, whereBase);
 
-      // 📊 Ano atual + 2 anteriores
-      const anosComparacao = [anoBase, anoBase - 1, anoBase - 2];
-
-      // 🧠 Filtro base
-      const where = {
-        data: {
-          [Op.and]: [
-            Sequelize.where(
-              Sequelize.fn("EXTRACT", Sequelize.literal('YEAR FROM "data"')),
-              { [Op.in]: anosComparacao },
-            ),
-            Sequelize.where(
-              Sequelize.fn("EXTRACT", Sequelize.literal('MONTH FROM "data"')),
-              mesBase,
-            ),
-          ],
-        },
-      };
-
-      // 🎯 Produto (opcional)
-      if (produto && produto !== "todos") {
-        where.produto = produto;
-      }
-
-      // 🏦 Agência
-      if (perfil === "admin") {
-        if (!todasAgencias && agenciaId) {
-          where.AgenciaId = agenciaId;
-        }
-      } else {
-        // usuário comum só vê a própria agência
-        where.AgenciaId = agenciaUsuarioId;
-      }
-
-      // 📦 Consulta
-      const resultados = await VendaMeta.findAll({
-        where,
-        attributes: [
-          [
-            Sequelize.fn("EXTRACT", Sequelize.literal('YEAR FROM "data"')),
-            "ano",
-          ],
-          [Sequelize.fn("SUM", Sequelize.col("valorMeta")), "meta"],
-          [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "realizado"],
-        ],
-        group: ["ano"],
-        order: [[Sequelize.literal("ano"), "ASC"]],
-        raw: true,
-      });
-
-      // 📈 Formatação
-      const dados = resultados.map((item) => {
-        const meta = Number(item.meta) || 0;
-        const realizado = Number(item.realizado) || 0;
-
-        return {
-          ano: Number(item.ano),
-          meta,
-          realizado,
-          percentual:
-            meta > 0 ? Number(((realizado / meta) * 100).toFixed(2)) : 0,
-        };
-      });
-
+    if (!ultimaData) {
       return res.json({
         periodo: {
-          mes: mesBase,
-          anos: anosComparacao,
+          dataInicio: periodo.dataInicio,
+          dataFim: periodo.dataFim,
+          diasTotais,
+          diasDecorridos,
+          diasRestantes,
         },
-        produto: produto || "Todos",
-        dados,
-      });
-    } catch (err) {
-      console.error("❌ Erro no dashboard comparativo:", err);
-      return res.status(500).json({
-        error: "Erro ao gerar dashboard comparativo",
+        produtos: [],
       });
     }
-  },
 
-  async rankingAgencias(req, res) {
-    try {
-      const perfil = req.userPerfil;
-      const userAgenciaId = req.userAgenciaId;
+    const where = {
+      ...whereBase,
+      data: ultimaData,
+    };
 
-      const { ano, mes, produto, orderBy = "valor" } = req.query;
-
-      if (!ano || !mes) {
-        return res.status(400).json({
-          error: "Informe ano e mês para gerar o ranking",
-        });
-      }
-
-      const anoNum = Number(ano);
-      const mesNum = Number(mes);
-
-      const where = {
-        data: {
-          [Op.and]: [
-            Sequelize.where(
-              Sequelize.fn("EXTRACT", Sequelize.literal('YEAR FROM "data"')),
-              anoNum,
-            ),
-            Sequelize.where(
-              Sequelize.fn("EXTRACT", Sequelize.literal('MONTH FROM "data"')),
-              mesNum,
-            ),
-          ],
+    const vendas = await VendaMeta.findAll({
+      attributes: [
+        [Sequelize.col("produto.nome"), "produto"],
+        [sequelize.fn("SUM", sequelize.col("valorMeta")), "meta"],
+        [sequelize.fn("SUM", sequelize.col("valorRealizado")), "realizado"],
+      ],
+      include: [
+        {
+          model: Produto,
+          as: "produto",
+          attributes: [],
         },
+      ],
+      where,
+      group: ["produto.nome"],
+      raw: true,
+    });
+
+    const produtos = vendas.map((p) => {
+      const meta = numeroSeguro(p.meta);
+      const realizado = numeroSeguro(p.realizado);
+
+      const faltante = Math.max(meta - realizado, 0);
+      const atingimento = meta > 0 ? (realizado / meta) * 100 : 0;
+      const esforcoDiario = diasRestantes > 0 ? faltante / diasRestantes : 0;
+
+      return {
+        produto: p.produto,
+        meta,
+        realizado,
+        atingimento: Number(atingimento.toFixed(2)),
+        faltante,
+        esforcoDiarioNecessario: Number(esforcoDiario.toFixed(2)),
       };
+    });
 
-      if (produto && produto !== "todos") {
-        where.produto = produto;
-      }
+    return res.json({
+      periodo: {
+        dataInicio: periodo.dataInicio,
+        dataFim: periodo.dataFim,
+        diasTotais,
+        diasDecorridos,
+        diasRestantes,
+      },
+      produtos,
+    });
+  } catch (err) {
+    console.error("Erro dashboard atual:", err);
+    return res.status(500).json({ error: "Erro ao gerar dashboard atual" });
+  }
+}
 
-      // 👤 usuário comum vê só a própria agência
-      if (perfil !== "admin") {
-        where.AgenciaId = userAgenciaId;
-      }
+/* =========================================================
+RANKING DE AGÊNCIAS
+========================================================= */
+async function rankingAgencias(req, res) {
+  try {
+    const { produto, orderBy = "valor", periodoId } = req.query;
+    const periodo = await obterPeriodoBase(periodoId);
 
-      const ranking = await VendaMeta.findAll({
-        where,
-        attributes: [
-          "AgenciaId",
-          [Sequelize.fn("SUM", Sequelize.col("valorMeta")), "meta"],
-          [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "realizado"],
-        ],
-        include: [
-          {
-            model: Agencia, // ⚠️ SEM alias
-            attributes: ["id", "nome", "codigo"],
-          },
-        ],
-        group: ["VendaMeta.AgenciaId", "Agencium.id"],
-        raw: true,
+    if (!periodo) {
+      return res.status(404).json({
+        error: "Nenhum período vigente encontrado",
       });
+    }
 
-      let resultado = ranking.map((item) => {
-        const meta = Number(item.meta) || 0;
-        const realizado = Number(item.realizado) || 0;
+    const whereBase = {};
 
-        return {
-          agencia: {
-            id: item["Agencia.id"],
-            nome: item["Agencia.nome"],
-            codigo: item["Agencia.codigo"],
-          },
-          meta,
-          realizado,
-          percentual:
-            meta > 0 ? Number(((realizado / meta) * 100).toFixed(2)) : 0,
-        };
-      });
+    const ultimaData = await obterUltimaData(periodo, whereBase);
 
-      // ordena
-      if (orderBy === "percentual") {
-        resultado.sort((a, b) => b.percentual - a.percentual);
-      } else {
-        resultado.sort((a, b) => b.realizado - a.realizado);
-      }
-
-      // adiciona posição no ranking
-      let posicao = 0;
-      let ultimoValor = null;
-
-      resultado = resultado.map((item, index) => {
-        if (ultimoValor === null || item.realizado < ultimoValor) {
-          posicao = index + 1;
-        }
-
-        ultimoValor = item.realizado;
-
-        return {
-          ranking: posicao,
-          ...item,
-        };
-      });
-
-      let minhaAgencia = null;
-
-      if (perfil !== "admin") {
-        minhaAgencia = resultado.find(
-          (item) => item.agencia.id === userAgenciaId,
-        );
-      }
-
+    if (!ultimaData) {
       return res.json({
-        periodo: { mes: mesNum, ano: anoNum },
         produto: produto || "Todos",
-        minhaAgencia,
-        ranking: resultado,
-      });
-    } catch (err) {
-      console.error("❌ Erro no ranking de agências:", err);
-      return res.status(500).json({
-        error: "Erro ao gerar ranking de agências",
+        ranking: [],
       });
     }
-  },
 
-  async rankingAgenciasPorPercentual(req, res) {
-    try {
-      const perfil = req.userPerfil;
-      const userAgenciaId = req.userAgenciaId;
-      const { ano, mes, produto } = req.query;
+    const where = {
+      ...whereBase,
+      data: ultimaData,
+    };
 
-      if (!ano || !mes) {
+    const ranking = await VendaMeta.findAll({
+      where,
+      include: [
+        includeProduto(produto),
+        {
+          model: Agencia,
+          as: "agencia",
+          attributes: ["id", "nome", "codigo"],
+        },
+      ],
+      attributes: [
+        "agenciaId",
+        [Sequelize.fn("SUM", Sequelize.col("valorMeta")), "meta"],
+        [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "realizado"],
+      ],
+      group: [
+        "VendaMeta.agenciaId",
+        "agencia.id",
+        "agencia.nome",
+        "agencia.codigo",
+      ],
+      raw: true,
+    });
+
+    let resultado = ranking.map((item) => {
+      const meta = numeroSeguro(item.meta);
+      const realizado = numeroSeguro(item.realizado);
+
+      return {
+        agencia: {
+          id: item["agencia.id"],
+          nome: item["agencia.nome"],
+          codigo: item["agencia.codigo"],
+        },
+        meta,
+        realizado,
+        percentual:
+          meta > 0 ? Number(((realizado / meta) * 100).toFixed(2)) : 0,
+      };
+    });
+
+    resultado.sort((a, b) =>
+      orderBy === "percentual"
+        ? b.percentual - a.percentual
+        : b.realizado - a.realizado,
+    );
+
+    const rankingComPosicao = resultado.map((item, index) => ({
+      ...item,
+      ranking: index + 1,
+    }));
+
+    return res.json({
+      produto: produto || "Todos",
+      ranking: rankingComPosicao,
+    });
+  } catch (err) {
+    console.error("Erro no ranking de agências:", err);
+    return res.status(500).json({
+      error: "Erro ao gerar ranking de agências",
+    });
+  }
+}
+
+/* =========================================================
+EVOLUÇÃO DE VENDAS
+========================================================= */
+async function evolucaoVendas(req, res) {
+  try {
+    const { produto, agenciaId, periodoId, comparacaoId } = req.query;
+    const perfil = req.userPerfil;
+    const userAgenciaId = req.userAgenciaId;
+
+    if (!produto) {
+      return res.status(400).json({ error: "Produto é obrigatório" });
+    }
+
+    const periodoAtual = await obterPeriodoBase(periodoId);
+
+    if (!periodoAtual) {
+      return res.status(404).json({ error: "Período atual não encontrado" });
+    }
+
+    const whereBase = {};
+
+    if (perfil !== "admin") {
+      if (!userAgenciaId) {
         return res.status(400).json({
-          error: "Informe ano e mês para gerar o ranking",
+          error: "Usuário sem agência vinculada",
         });
       }
+      whereBase.agenciaId = userAgenciaId;
+    } else if (agenciaId && agenciaId !== "todas") {
+      whereBase.agenciaId = agenciaId;
+    }
 
-      const anoNum = Number(ano);
-      const mesNum = Number(mes);
+    const linhaAtual = await vendasPorDia(periodoAtual, whereBase, produto);
 
-      const where = {
-        data: {
-          [Op.and]: [
-            Sequelize.where(
-              Sequelize.fn("EXTRACT", Sequelize.literal('YEAR FROM "data"')),
-              anoNum,
-            ),
-            Sequelize.where(
-              Sequelize.fn("EXTRACT", Sequelize.literal('MONTH FROM "data"')),
-              mesNum,
-            ),
-          ],
-        },
-      };
+    const ultimaDataProduto = await obterUltimaDataProduto(
+      periodoAtual,
+      whereBase,
+      produto,
+    );
 
-      if (produto && produto !== "todos") {
-        where.produto = produto;
-      }
-
-      if (perfil !== "admin") {
-        where.AgenciaId = userAgenciaId;
-      }
-
-      const dados = await VendaMeta.findAll({
-        where,
-        attributes: [
-          "AgenciaId",
-          [Sequelize.fn("SUM", Sequelize.col("valorMeta")), "meta"],
-          [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "realizado"],
-        ],
-        include: [
-          {
-            model: Agencia, // 👈 SEM alias
-            attributes: ["id", "nome", "codigo"],
+    const meta = ultimaDataProduto
+      ? await VendaMeta.sum("valorMeta", {
+          where: {
+            ...whereBase,
+            data: ultimaDataProduto,
           },
-        ],
-        group: ["VendaMeta.AgenciaId", "Agencium.id"],
-        raw: true,
-      });
-
-      const ranking = dados
-        .map((item) => {
-          const meta = Number(item.meta) || 0;
-          const realizado = Number(item.realizado) || 0;
-
-          return {
-            meta,
-            realizado,
-            percentual:
-              meta > 0 ? Number(((realizado / meta) * 100).toFixed(2)) : 0,
-            agencia: {
-              id: item["Agencium.id"],
-              nome: item["Agencium.nome"],
-              codigo: item["Agencium.codigo"],
-            },
-          };
+          include: [includeProduto(produto)],
         })
-        .sort((a, b) => b.percentual - a.percentual);
+      : 0;
 
-      let posicao = 0;
-      let ultimoPercentual = null;
+    let linhaComparacao = [];
+    let periodoComparacao = null;
 
-      const rankingComEmpate = ranking.map((item, index) => {
-        if (ultimoPercentual === null || item.percentual < ultimoPercentual) {
-          posicao = index + 1;
-        }
+    if (comparacaoId) {
+      periodoComparacao = await carregarPeriodo(comparacaoId);
 
-        ultimoPercentual = item.percentual;
-
-        return {
-          ranking: posicao,
-          ...item,
-        };
-      });
-
-      return res.json({
-        periodo: { ano: anoNum, mes: mesNum },
-        produto: produto || "Todos",
-        ranking: rankingComEmpate,
-      });
-    } catch (err) {
-      console.error("❌ Erro no ranking por percentual:", err);
-      return res.status(500).json({
-        error: "Erro ao gerar ranking por percentual de meta",
-      });
-    }
-  },
-
-  async evolucaoRankingAgencia(req, res) {
-    try {
-      const { ano, produto } = req.query;
-      const perfil = req.userPerfil;
-      const userAgenciaId = req.userAgenciaId;
-
-      if (!ano) {
-        return res.status(400).json({ error: "Informe o ano" });
+      if (!periodoComparacao) {
+        return res
+          .status(404)
+          .json({ error: "Período de comparação inválido" });
       }
 
-      const anoNum = Number(ano);
-      const resultadoFinal = [];
+      linhaComparacao = await vendasPorDia(
+        periodoComparacao,
+        whereBase,
+        produto,
+      );
 
-      for (let mes = 1; mes <= 12; mes++) {
-        const where = {
-          data: {
-            [Op.and]: [
-              Sequelize.where(
-                Sequelize.fn("EXTRACT", Sequelize.literal('YEAR FROM "data"')),
-                anoNum,
-              ),
-              Sequelize.where(
-                Sequelize.fn("EXTRACT", Sequelize.literal('MONTH FROM "data"')),
-                mes,
-              ),
-            ],
-          },
-        };
+      const inicioAtual = parseDateOnly(periodoAtual.dataInicio);
+      const inicioComparacao = parseDateOnly(periodoComparacao.dataInicio);
 
-        if (produto && produto !== "todos") {
-          where.produto = produto;
-        }
-
-        const dados = await VendaMeta.findAll({
-          where,
-          attributes: [
-            "AgenciaId",
-            [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "realizado"],
-          ],
-          group: ["VendaMeta.AgenciaId"],
-          raw: true,
-        });
-
-        if (!dados.length) continue;
-
-        // ordena por valor
-        const rankingMes = dados
-          .map((item) => ({
-            AgenciaId: item.AgenciaId,
-            realizado: Number(item.realizado) || 0,
-          }))
-          .sort((a, b) => b.realizado - a.realizado);
-
-        // ranking com empate
-        let posicao = 0;
-        let ultimoValor = null;
-
-        const rankingComPosicao = rankingMes.map((item, index) => {
-          if (ultimoValor === null || item.realizado < ultimoValor) {
-            posicao = index + 1;
-          }
-          ultimoValor = item.realizado;
+      if (inicioAtual && inicioComparacao) {
+        linhaComparacao = linhaComparacao.map((item) => {
+          const dataItem = parseDateOnly(item.dia);
+          const diffDias = Math.round(
+            (dataItem - inicioComparacao) / (1000 * 60 * 60 * 24),
+          );
+          const dataAlinhada = new Date(inicioAtual);
+          dataAlinhada.setUTCDate(dataAlinhada.getUTCDate() + diffDias);
 
           return {
-            ranking: posicao,
             ...item,
+            dia: formatDateOnly(dataAlinhada),
           };
         });
-
-        const minhaPosicao = rankingComPosicao.find(
-          (item) => item.AgenciaId === userAgenciaId,
-        );
-
-        if (minhaPosicao) {
-          resultadoFinal.push({
-            mes,
-            ranking: minhaPosicao.ranking,
-          });
-        }
       }
-
-      return res.json({
-        ano: anoNum,
-        produto: produto || "Todos",
-        evolucao: resultadoFinal,
-      });
-    } catch (err) {
-      console.error("❌ Erro na evolução de ranking:", err);
-      return res.status(500).json({
-        error: "Erro ao gerar evolução do ranking",
-      });
     }
-  },
+
+    return res.json({
+      produto,
+      atual: linhaAtual,
+      comparacao: linhaComparacao,
+      meta: numeroSeguro(meta),
+      periodoAtual: {
+        dataInicio: periodoAtual.dataInicio,
+        dataFim: periodoAtual.dataFim,
+      },
+      periodoComparacao: periodoComparacao
+        ? {
+            dataInicio: periodoComparacao.dataInicio,
+            dataFim: periodoComparacao.dataFim,
+          }
+        : null,
+    });
+  } catch (err) {
+    console.error("Erro evolução vendas:", err);
+    return res.status(500).json({
+      error: "Erro ao gerar evolução de vendas",
+    });
+  }
+}
+
+/* =========================================================
+LISTAGEM DE PERÍODOS
+========================================================= */
+async function listarPeriodos(req, res) {
+  try {
+    const periodos = await Periodo.findAll({
+      order: [["dataInicio", "DESC"]],
+    });
+
+    return res.json(periodos);
+  } catch (err) {
+    console.error("Erro ao listar períodos:", err);
+    return res.status(500).json({ error: "Erro ao listar períodos" });
+  }
+}
+
+/* =========================================================
+EXPORTS
+========================================================= */
+module.exports = {
+  produtosAtivos,
+  resumoAtual,
+  rankingAgencias,
+  evolucaoVendas,
+  listarPeriodos,
 };

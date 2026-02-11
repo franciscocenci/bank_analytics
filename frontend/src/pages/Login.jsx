@@ -18,7 +18,7 @@ export default function Login() {
     try {
       const res = await login(email, senha);
 
-      // 🔐 Caso precise trocar senha
+      // Redirect to password change when required.
       if (res.trocaSenha) {
         navigate("/trocar-senha", {
           state: { email },
@@ -26,7 +26,7 @@ export default function Login() {
         return;
       }
 
-      // ✅ Login normal
+      // Normal login redirect.
       navigate("/admin/dashboard");
     } catch (err) {
       console.error("ERRO LOGIN:", err.response?.data);

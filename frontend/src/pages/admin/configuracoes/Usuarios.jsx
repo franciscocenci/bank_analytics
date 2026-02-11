@@ -11,6 +11,7 @@ export default function Usuarios() {
   const [perfil, setPerfil] = useState("usuario");
   const [agencias, setAgencias] = useState([]);
   const [agenciaId, setAgenciaId] = useState("");
+  const [editando, setEditando] = useState(null);
 
   async function carregar() {
     try {
@@ -44,7 +45,7 @@ export default function Usuarios() {
         email,
         senha,
         perfil,
-        AgenciaId: agenciaId,
+        agenciaId: agenciaId,
       });
 
       setCriando(false);
@@ -71,6 +72,66 @@ export default function Usuarios() {
     }
   }
 
+  async function resetarSenha(id) {
+    if (
+      !window.confirm(
+        "Deseja resetar a senha deste usuário? Uma nova senha provisória será gerada.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await api.put(`/users/${id}/reset-senha`);
+
+      alert(
+        `Senha resetada com sucesso!\n\nNova senha provisória: ${res.data.senhaProvisoria}`,
+      );
+    } catch (err) {
+      alert(err.response?.data?.error || "Erro ao resetar senha");
+    }
+  }
+
+  async function atualizarUsuario() {
+    if (!nome || !perfil || !agenciaId) {
+      alert("Nome, perfil e agência são obrigatórios");
+      return;
+    }
+
+    try {
+      await api.put(`/users/${editando.id}`, {
+        nome,
+        perfil,
+        agenciaId: agenciaId,
+        // senha NÃO vai se estiver vazia
+      });
+
+      setEditando(null);
+      setCriando(false);
+
+      setNome("");
+      setEmail("");
+      setSenha("");
+      setPerfil("usuario");
+      setAgenciaId("");
+
+      carregar();
+    } catch (err) {
+      alert(err.response?.data?.error || "Erro ao atualizar usuário");
+    }
+  }
+
+  function editarUsuario(u) {
+    setEditando(u);
+    setCriando(true);
+
+    setNome(u.nome);
+    setEmail(u.email);
+    setPerfil(u.perfil);
+    setAgenciaId(u.agenciaId);
+    setSenha(""); // nunca preenche senha
+  }
+
   useEffect(() => {
     carregar();
     carregarAgencias();
@@ -88,8 +149,13 @@ export default function Usuarios() {
 
           <form
             onSubmit={(e) => {
-              e.preventDefault(); // impede reload da página
-              salvarUsuario();
+              e.preventDefault();
+
+              if (editando) {
+                atualizarUsuario();
+              } else {
+                salvarUsuario();
+              }
             }}
           >
             <input
@@ -104,15 +170,17 @@ export default function Usuarios() {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              disabled={!!editando}
             />
 
             <input
               type="password"
-              placeholder="Senha"
+              placeholder={
+                editando ? "Deixe em branco para não alterar a senha" : "Senha"
+              }
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              required
+              required={!editando}
             />
 
             <select
@@ -142,8 +210,19 @@ export default function Usuarios() {
             <br />
             <br />
 
-            <button type="submit">Salvar</button>
-            <button type="button" onClick={() => setCriando(false)}>
+            <button type="submit">{editando ? "Atualizar" : "Salvar"}</button>
+            <button
+              type="button"
+              onClick={() => {
+                setCriando(false);
+                setEditando(null);
+                setNome("");
+                setEmail("");
+                setSenha("");
+                setPerfil("usuario");
+                setAgenciaId("");
+              }}
+            >
               Cancelar
             </button>
           </form>
@@ -174,11 +253,14 @@ export default function Usuarios() {
                   <td>{u.nome}</td>
                   <td>{u.email}</td>
                   <td>{u.perfil}</td>
-                  <td>{u.Agencia?.nome || "-"}</td>
+                  <td>{u.agencia?.nome || "-"}</td>
                   <td>
-                    <button onClick={() => alert("editar depois")}>
-                      Editar
+                    <button onClick={() => editarUsuario(u)}>Editar</button>
+
+                    <button onClick={() => resetarSenha(u.id)}>
+                      Resetar Senha
                     </button>
+
                     <button onClick={() => excluirUsuario(u.id)}>
                       Excluir
                     </button>

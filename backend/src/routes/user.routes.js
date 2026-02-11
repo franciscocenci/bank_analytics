@@ -23,6 +23,8 @@ router.get("/:id", authMiddleware, UserController.show);
 
 router.put("/:id", authMiddleware, UserController.update);
 
+router.put("/:id/reset-senha", authMiddleware, UserController.resetSenha);
+
 router.delete(
   "/:id",
   authMiddleware,
