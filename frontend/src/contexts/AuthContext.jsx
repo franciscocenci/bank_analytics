@@ -29,8 +29,6 @@ export function AuthProvider({ children }) {
     try {
       const res = await api.post("/auth/login", { email, senha });
 
-      console.log("Resposta do login:", res.data);
-
       // Temporary password flow.
       if (res.data.trocaSenha) {
         return {
@@ -53,6 +51,14 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
+
+      if (import.meta.env.DEV) {
+        console.log("Login OK (dev)", {
+          userId: user?.id,
+          perfil: user?.perfil,
+          agenciaId: user?.agenciaId,
+        });
+      }
 
       setUser(user);
 

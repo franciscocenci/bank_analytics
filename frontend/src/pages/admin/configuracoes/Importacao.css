@@ -1,0 +1,258 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap");
+
+.importacao-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  color: #0f172a;
+}
+
+.importacao-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 60%, #eef2ff 100%);
+  border-radius: 18px;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.importacao-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.importacao-eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.importacao-header h2 {
+  margin: 6px 0 4px;
+  font-size: 24px;
+}
+
+.importacao-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #475569;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.status-idle {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.status-processando {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-concluido {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-erro {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.importacao-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed #94a3b8;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.file-label input {
+  display: none;
+}
+
+.importacao-form button {
+  border: none;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.importacao-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.importacao-form button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
+}
+
+.importacao-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #6366f1);
+  transition: width 0.3s ease;
+}
+
+.progress-meta {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.importacao-erro {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.importacao-resumo {
+  display: grid;
+  gap: 20px;
+}
+
+.resumo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.resumo-card {
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
+}
+
+.resumo-card span {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.resumo-card strong {
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.resumo-erros {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.resumo-erros h3 {
+  margin: 0 0 10px;
+}
+
+.resumo-lista {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.resumo-item {
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  border: 1px solid #fed7aa;
+  font-size: 13px;
+}
+
+.resumo-sucesso {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #ecfdf3;
+  border: 1px solid #86efac;
+  border-radius: 16px;
+  padding: 16px;
+  color: #14532d;
+}
+
+.resumo-sucesso strong {
+  font-size: 16px;
+}
+
+.resumo-sucesso span {
+  font-size: 13px;
+  color: #166534;
+}
+
+@media (max-width: 768px) {
+  .importacao-header {
+    flex-direction: column;
+  }
+
+  .importacao-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

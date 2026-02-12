@@ -7,6 +7,7 @@ export default function RankingProduto({
   agenciaIdDestaque,
 }) {
   const [dados, setDados] = useState([]);
+  const [mensuracao, setMensuracao] = useState("volume");
 
   const agenciaDestaque = useMemo(() => {
     if (!agenciaIdDestaque) return null;
@@ -22,6 +23,7 @@ export default function RankingProduto({
 
         // pegamos apenas top 5
         setDados(res.data.ranking.slice(0, 5));
+        setMensuracao(res.data.mensuracao || "volume");
       } catch (err) {
         console.error("Erro ao carregar ranking", produto, err);
       }
@@ -53,7 +55,15 @@ export default function RankingProduto({
             >
               <td>{ag.ranking || index + 1}</td>
               <td>{ag.agencia.nome}</td>
-              <td>{ag.realizado.toLocaleString("pt-BR")}</td>
+              <td>
+                {mensuracao === "quantidade"
+                  ? Math.round(ag.realizado).toLocaleString("pt-BR")
+                  : "R$ " +
+                    Number(ag.realizado).toLocaleString("pt-BR", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+              </td>
             </tr>
           ))}
         </tbody>

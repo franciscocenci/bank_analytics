@@ -1,13 +1,26 @@
-export default function IndicadorProduto({ produto }) {
+export default function IndicadorProduto({ produto, percentualTempo }) {
   if (!produto) return null;
 
   const percentual = Math.min(produto.atingimento, 100);
+  const percentualTempoSeguro =
+    typeof percentualTempo === "number" && !Number.isNaN(percentualTempo)
+      ? percentualTempo
+      : null;
+  const estaAtrasado =
+    percentualTempoSeguro !== null && percentual < percentualTempoSeguro;
 
   const formatar = (valor) => {
-    if (produto.produto === "Cartão de Crédito")
-      return Math.round(valor).toLocaleString("pt-BR");
+    if (produto.mensuracao === "quantidade") {
+      return Math.round(Number(valor)).toLocaleString("pt-BR");
+    }
 
-    return "R$ " + Number(valor).toLocaleString("pt-BR");
+    return (
+      "R$ " +
+      Number(valor).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
   };
 
   return (
@@ -48,7 +61,11 @@ export default function IndicadorProduto({ produto }) {
           </div>
 
           <span className="indicador-separador" aria-hidden="true" />
-          <span className="indicador-percentual">{percentual}%</span>
+          <span
+            className={`indicador-percentual${estaAtrasado ? " atrasado" : ""}`}
+          >
+            {percentual}%
+          </span>
         </div>
       </div>
     </div>

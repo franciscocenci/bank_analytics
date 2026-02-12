@@ -14,6 +14,14 @@ module.exports = (sequelize) => {
         allowNull: false,
         unique: true,
       },
+      mensuracao: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: "volume",
+        validate: {
+          isIn: [["volume", "quantidade"]],
+        },
+      },
       ativo: {
         type: DataTypes.BOOLEAN,
         defaultValue: true,

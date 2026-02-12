@@ -37,7 +37,7 @@ module.exports = (sequelize) => {
   // Model associations.
   User.associate = (models) => {
     User.belongsTo(models.Agencia, { foreignKey: "agenciaId", as: "agencia" });
-    User.hasMany(models.VendaMeta, { foreignKey: "UserId", as: "vendas" });
+    User.hasMany(models.VendaMeta, { foreignKey: "userId", as: "vendas" });
   };
 
   return User;

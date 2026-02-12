@@ -1,9 +1,9 @@
- .dashboard-page {
+.dashboard-page {
   display: flex;
   flex-direction: column;
   gap: 40px;
   padding: 24px 20px 40px;
- }
+}
 
 .dashboard-title {
   margin: 0;
@@ -15,6 +15,12 @@
   background: #f8fafc;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
+}
+
+.dashboard-section--chart {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
 .dashboard-details {
@@ -128,6 +134,10 @@
   margin: 12px 0 16px;
 }
 
+.dashboard-section--chart .dashboard-filtros {
+  margin-bottom: 12px;
+}
+
 .dashboard-filtros > div {
   display: flex;
   flex-direction: column;
@@ -146,6 +156,39 @@
   background: #fff;
 }
 
+.evolucao-chart {
+  width: 100%;
+  min-height: 420px;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.evolucao-chart-title {
+  text-align: center;
+  margin-bottom: 0;
+}
+
+.evolucao-chart-canvas {
+  flex: 1;
+  min-height: 320px;
+}
+
+.evolucao-chart-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
 .indicador-card {
   background: white;
   border-radius: 12px;
@@ -159,7 +202,6 @@
   justify-content: space-between;
   align-items: center;
 }
-
 
 .indicador-body {
   display: grid;
@@ -280,6 +322,10 @@
   white-space: nowrap;
   padding-right: 6px;
   padding-left: 2px;
+}
+
+.indicador-percentual.atrasado {
+  color: #dc2626;
 }
 
 @container (max-width: 820px) {

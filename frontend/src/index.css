@@ -16,3 +16,11 @@ body {
   font-family: "Poppins", Calibri, sans-serif;
   background-color: #f5f7fa;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  scroll-padding-top: 16px;
+}

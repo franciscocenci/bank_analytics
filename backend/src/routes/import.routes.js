@@ -13,4 +13,11 @@ router.post(
   ImportController.importarMetas,
 );
 
+router.get(
+  "/vendas/progresso/:jobId",
+  auth,
+  authorize(["admin"]),
+  ImportController.progressoImportacao,
+);
+
 module.exports = router;

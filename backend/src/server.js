@@ -8,6 +8,7 @@ const dashboardRoutes = require("./routes/dashboard.routes");
 const agenciaRoutes = require("./routes/agencia.routes");
 const userRoutes = require("./routes/user.routes");
 const periodoRoutes = require("./routes/periodo.routes");
+const produtoRoutes = require("./routes/produto.routes");
 
 require("dotenv").config();
 
@@ -35,6 +36,7 @@ app.use("/import", importRoutes);
 app.use("/agencias", agenciaRoutes);
 app.use("/users", userRoutes);
 app.use("/periodos", periodoRoutes);
+app.use("/produtos", produtoRoutes);
 
 // Seed initial admin user if missing.
 async function seedAdmin() {

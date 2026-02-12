@@ -7,6 +7,7 @@ import Importacao from "./pages/admin/configuracoes/Importacao";
 import Agencias from "./pages/admin/configuracoes/Agencias";
 import Usuarios from "./pages/admin/configuracoes/Usuarios";
 import Periodos from "./pages/admin/configuracoes/Periodos";
+import Produtos from "./pages/admin/configuracoes/Produtos";
 import TrocarSenha from "./pages/TrocarSenha";
 import Dashboard from "./pages/Dashboard";
 
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="agencias" element={<Agencias />} />
             <Route path="usuarios" element={<Usuarios />} />
             <Route path="periodos" element={<Periodos />} />
+            <Route path="produtos" element={<Produtos />} />
           </Route>
         </Route>
         {/* Trocar senha */}

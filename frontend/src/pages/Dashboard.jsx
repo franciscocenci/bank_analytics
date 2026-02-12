@@ -18,6 +18,13 @@ export default function Dashboard() {
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
   const [agencias, setAgencias] = useState([]);
   const [agenciaSelecionada, setAgenciaSelecionada] = useState("todas");
+  const [agenciaResumoSelecionada, setAgenciaResumoSelecionada] = useState("todas");
+  const [ordenacaoResumo, setOrdenacaoResumo] = useState(() => {
+    if (typeof window === "undefined") return "percentual_asc";
+    return (
+      localStorage.getItem("dashboardResumoOrdenacao") || "percentual_asc"
+    );
+  });
 
   const periodoAtual = periodos.find((p) => String(p.id) === String(periodoAtualId));
   const periodoEvolucao = periodos.find(
@@ -173,7 +180,7 @@ export default function Dashboard() {
         const res = await api.get("/dashboard/resumo-atual", {
           params: {
             periodoId: periodoAtualId,
-            agenciaId: isAdmin ? agenciaSelecionada : undefined,
+            agenciaId: isAdmin ? agenciaResumoSelecionada : undefined,
           },
         });
         setResumo(res.data);
@@ -183,7 +190,12 @@ export default function Dashboard() {
     }
 
     carregarResumo();
-  }, [periodoAtualId, agenciaSelecionada, isAdmin]);
+  }, [periodoAtualId, agenciaResumoSelecionada, isAdmin]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("dashboardResumoOrdenacao", ordenacaoResumo);
+  }, [ordenacaoResumo]);
 
 
   const diasTotais = resumo?.periodo?.diasTotais ?? 0;
@@ -191,6 +203,26 @@ export default function Dashboard() {
   const percentualDias = diasTotais
     ? Math.min(100, Math.max(0, (diasDecorridos / diasTotais) * 100))
     : 0;
+
+  const produtosResumoOrdenados = useMemo(() => {
+    if (!resumo?.produtos) return [];
+
+    const lista = [...resumo.produtos];
+
+    if (ordenacaoResumo === "percentual_desc") {
+      return lista.sort((a, b) => (b.atingimento || 0) - (a.atingimento || 0));
+    }
+
+    if (ordenacaoResumo === "percentual_asc") {
+      return lista.sort((a, b) => (a.atingimento || 0) - (b.atingimento || 0));
+    }
+
+    return lista.sort((a, b) =>
+      (a.produto || "").localeCompare(b.produto || "", "pt-BR", {
+        sensitivity: "base",
+      }),
+    );
+  }, [resumo, ordenacaoResumo]);
 
   return (
     <div className="dashboard-page">
@@ -214,7 +246,7 @@ export default function Dashboard() {
 
           </section>
 
-          <section className="dashboard-section">
+          <section className="dashboard-section dashboard-section--chart">
             <h2>Gráfico de Evolução de Vendas</h2>
 
             <div className="dashboard-filtros">
@@ -293,6 +325,37 @@ export default function Dashboard() {
           <section className="dashboard-section">
             <h2>Resumo do Período Atual</h2>
 
+            <div className="dashboard-filtros">
+              <div>
+                <label>Ordenar por</label>
+                <select
+                  value={ordenacaoResumo}
+                  onChange={(e) => setOrdenacaoResumo(e.target.value)}
+                >
+                  <option value="produto">Produto (A-Z)</option>
+                  <option value="percentual_desc">% de realização (maior para menor)</option>
+                  <option value="percentual_asc">% de realização (menor para maior)</option>
+                </select>
+              </div>
+
+              {isAdmin && (
+                <div>
+                  <label>Selecione a agência</label>
+                  <select
+                    value={agenciaResumoSelecionada}
+                    onChange={(e) => setAgenciaResumoSelecionada(e.target.value)}
+                  >
+                    <option value="todas">Todas as agências</option>
+                    {agencias.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
             <div className="dashboard-periodo-header">
               <p className="dashboard-periodo-label">
                 Período: {labelPeriodoCabecalho(resumo.periodo)} ({" "}
@@ -319,8 +382,12 @@ export default function Dashboard() {
             </div>
 
             <div className="grafico-grid">
-              {resumo.produtos.map((p, i) => (
-                <IndicadorProduto key={i} produto={p} />
+              {produtosResumoOrdenados.map((p, i) => (
+                <IndicadorProduto
+                  key={i}
+                  produto={p}
+                  percentualTempo={percentualDias}
+                />
               ))}
             </div>
 

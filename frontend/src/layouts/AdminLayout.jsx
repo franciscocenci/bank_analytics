@@ -17,6 +17,16 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <h2 className="logo">Sistema Bancário</h2>
 
+        <div className="user-panel">
+          <p className="user-panel-label">Usuário logado</p>
+          <p className="user-panel-name">{user?.nome || "-"}</p>
+          <p className="user-panel-agencia">
+            {user?.agencia?.nome
+              ? `Agência: ${user.agencia.nome}`
+              : "Agência: -"}
+          </p>
+        </div>
+
         <nav>
           <NavLink
             to="/admin/dashboard"

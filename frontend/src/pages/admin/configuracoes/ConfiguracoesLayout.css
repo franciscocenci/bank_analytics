@@ -1,31 +1,77 @@
+.config-shell {
+  --ink: #0f172a;
+  --muted: #64748b;
+  --card: #ffffff;
+  --line: #e2e8f0;
+  --accent: #0f172a;
+  --accent-soft: #e0e7ff;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 45%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.12), transparent 40%),
+    #f8fafc;
+  min-height: 100vh;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  color: var(--ink);
+}
+
 .config-container {
   display: flex;
-  height: 100%;
+  gap: 24px;
+  padding: 24px;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
 .config-sidebar {
-  width: 200px;
-  background: #ffffff;
-  border-right: 1px solid #ddd;
-  padding: 15px;
+  width: 220px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 18px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.2);
+}
+
+.config-sidebar h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
 }
 
 .config-sidebar a {
   text-decoration: none;
-  padding: 10px;
-  border-radius: 4px;
-  color: #333;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #cbd5f5;
+  font-size: 14px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.config-sidebar a:hover {
+  background: rgba(148, 163, 184, 0.18);
+  color: #f8fafc;
 }
 
 .config-sidebar a.active {
-  background: #1e4f7a;
-  color: white;
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .config-content {
   flex: 1;
-  padding: 20px;
+  padding: 8px 0;
+}
+
+@media (max-width: 1024px) {
+  .config-container {
+    flex-direction: column;
+  }
+
+  .config-sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }

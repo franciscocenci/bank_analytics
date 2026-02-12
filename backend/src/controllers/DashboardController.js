@@ -50,6 +50,12 @@ async function carregarPeriodo(periodoId) {
   return Periodo.findByPk(periodoId);
 }
 
+async function obterMensuracaoProduto(nomeProduto) {
+  if (!nomeProduto || nomeProduto === "todos") return "volume";
+  const produto = await Produto.findOne({ where: { nome: nomeProduto } });
+  return produto?.mensuracao || "volume";
+}
+
 async function obterPeriodoBase(periodoId) {
   if (periodoId) {
     return carregarPeriodo(periodoId);
@@ -134,7 +140,7 @@ async function produtosAtivos(req, res) {
           [Op.between]: [periodo.dataInicio, periodo.dataFim],
         },
       },
-      group: ["produto.nome"],
+      group: ["produto.nome", "produto.mensuracao"],
       order: [[Sequelize.col("produto.nome"), "ASC"]],
       raw: true,
     });
@@ -211,6 +217,7 @@ async function resumoAtual(req, res) {
     const vendas = await VendaMeta.findAll({
       attributes: [
         [Sequelize.col("produto.nome"), "produto"],
+        [Sequelize.col("produto.mensuracao"), "mensuracao"],
         [sequelize.fn("SUM", sequelize.col("valorMeta")), "meta"],
         [sequelize.fn("SUM", sequelize.col("valorRealizado")), "realizado"],
       ],
@@ -222,7 +229,7 @@ async function resumoAtual(req, res) {
         },
       ],
       where,
-      group: ["produto.nome"],
+      group: ["produto.nome", "produto.mensuracao"],
       raw: true,
     });
 
@@ -236,6 +243,7 @@ async function resumoAtual(req, res) {
 
       return {
         produto: p.produto,
+        mensuracao: p.mensuracao || "volume",
         meta,
         realizado,
         atingimento: Number(atingimento.toFixed(2)),
@@ -301,12 +309,12 @@ async function rankingAgencias(req, res) {
         },
       ],
       attributes: [
-        "agenciaId",
+        [Sequelize.col("VendaMeta.AgenciaId"), "agenciaId"],
         [Sequelize.fn("SUM", Sequelize.col("valorMeta")), "meta"],
         [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "realizado"],
       ],
       group: [
-        "VendaMeta.agenciaId",
+        Sequelize.col("VendaMeta.AgenciaId"),
         "agencia.id",
         "agencia.nome",
         "agencia.codigo",
@@ -342,8 +350,11 @@ async function rankingAgencias(req, res) {
       ranking: index + 1,
     }));
 
+    const mensuracao = await obterMensuracaoProduto(produto);
+
     return res.json({
       produto: produto || "Todos",
+      mensuracao,
       ranking: rankingComPosicao,
     });
   } catch (err) {
@@ -442,8 +453,11 @@ async function evolucaoVendas(req, res) {
       }
     }
 
+    const mensuracao = await obterMensuracaoProduto(produto);
+
     return res.json({
       produto,
+      mensuracao,
       atual: linhaAtual,
       comparacao: linhaComparacao,
       meta: numeroSeguro(meta),

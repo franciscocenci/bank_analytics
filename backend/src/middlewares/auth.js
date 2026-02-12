@@ -3,12 +3,14 @@ require("dotenv").config();
 
 module.exports = (req, res, next) => {
   const authHeader = req.headers.authorization;
+  const tokenQuery = typeof req.query?.token === "string" ? req.query.token : null;
+  const headerToUse = authHeader || (tokenQuery ? `Bearer ${tokenQuery}` : null);
 
-  if (!authHeader) {
+  if (!headerToUse) {
     return res.status(401).json({ error: "Token não fornecido" });
   }
 
-  const [, token] = authHeader.split(" ");
+  const [, token] = headerToUse.split(" ");
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

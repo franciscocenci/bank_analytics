@@ -54,7 +54,25 @@ module.exports = {
     try {
       const { email, senha } = req.body;
 
-      const user = await User.findOne({ where: { email } });
+      const user = await User.findOne({
+        where: { email },
+        attributes: [
+          "id",
+          "nome",
+          "email",
+          "perfil",
+          "agenciaId",
+          "senha",
+          "trocaSenha",
+        ],
+        include: [
+          {
+            model: Agencia,
+            as: "agencia",
+            attributes: ["id", "nome", "codigo"],
+          },
+        ],
+      });
 
       if (!user) {
         return res.status(401).json({ error: "E-mail ou senha inválidos" });
@@ -85,6 +103,13 @@ module.exports = {
           email: user.email,
           perfil: user.perfil,
           agenciaId: user.agenciaId,
+          agencia: user.agencia
+            ? {
+                id: user.agencia.id,
+                nome: user.agencia.nome,
+                codigo: user.agencia.codigo,
+              }
+            : null,
         },
         token: user.trocaSenha ? null : token,
       });
@@ -114,7 +139,25 @@ module.exports = {
         });
       }
 
-      const user = await User.findOne({ where: { email } });
+      const user = await User.findOne({
+        where: { email },
+        attributes: [
+          "id",
+          "nome",
+          "email",
+          "perfil",
+          "agenciaId",
+          "senha",
+          "trocaSenha",
+        ],
+        include: [
+          {
+            model: Agencia,
+            as: "agencia",
+            attributes: ["id", "nome", "codigo"],
+          },
+        ],
+      });
 
       if (!user) {
         return res.status(404).json({ error: "Usuário não encontrado" });
@@ -159,6 +202,13 @@ module.exports = {
           email: user.email,
           perfil: user.perfil,
           agenciaId: user.agenciaId,
+          agencia: user.agencia
+            ? {
+                id: user.agencia.id,
+                nome: user.agencia.nome,
+                codigo: user.agencia.codigo,
+              }
+            : null,
         },
         token,
       });

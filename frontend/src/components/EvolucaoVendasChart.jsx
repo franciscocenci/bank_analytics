@@ -21,18 +21,29 @@ export default function EvolucaoVendasChart({
   comparacaoId,
   agenciaId,
 }) {
-  const [dados, setDados] = useState({ lista: [], meta: 0 });
+  const [dados, setDados] = useState({
+    lista: [],
+    meta: 0,
+    mensuracao: "volume",
+  });
   const [loading, setLoading] = useState(false);
 
-  const formatarValor = useCallback((valor) => {
+  const formatarValor = useCallback((valor, mensuracaoAtual) => {
     if (valor === null || valor === undefined || Number.isNaN(valor)) {
       return "0";
     }
 
-    return Number(valor).toLocaleString("pt-BR", {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    });
+    if (mensuracaoAtual === "quantidade") {
+      return Math.round(Number(valor)).toLocaleString("pt-BR");
+    }
+
+    return (
+      "R$ " +
+      Number(valor).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    );
   }, []);
 
   const maxValor = useMemo(() => {
@@ -67,6 +78,7 @@ export default function EvolucaoVendasChart({
           atual = [],
           comparacao: dadosComparacao = [],
           meta = 0,
+          mensuracao = "volume",
         } = res.data;
 
         // 1. Centralizar todos os dados em um Map para evitar loops aninhados
@@ -116,6 +128,7 @@ export default function EvolucaoVendasChart({
         setDados({
           lista: dadosCompletos,
           meta: Number(meta),
+          mensuracao,
         });
       } catch (err) {
         if (err.name !== "CanceledError") {
@@ -138,102 +151,96 @@ export default function EvolucaoVendasChart({
   }, [carregarDados, dataInicio, dataFim]);
 
   return (
-    <div style={{ width: "100%", height: 560, position: "relative" }}>
-      <h3 style={{ textAlign: "center", marginBottom: "20px" }}>
+    <div className="evolucao-chart">
+      <h3 className="evolucao-chart-title">
         Evolução de Vendas - {produto || "Todos os Produtos"}
       </h3>
 
       {loading && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            zIndex: 10,
-            background: "rgba(255,255,255,0.8)",
-            padding: "10px",
-            borderRadius: "8px",
-          }}
-        >
-          Carregando dados...
-        </div>
+        <div className="evolucao-chart-loading">Carregando dados...</div>
       )}
 
-      <ResponsiveContainer width="100%" height={490}>
-        <LineChart
-          data={dados.lista}
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-
-          <XAxis
-            dataKey="dia"
-            type="category"
-            tickFormatter={(value) => {
-              if (!value) return "";
-              const [ano, mes, dia] = value.split("-");
-              return `${dia}/${mes}`;
-            }}
-            tick={{ fontSize: 12 }}
-            minTickGap={10}
-          />
-
-          <YAxis
-            domain={[0, maxValor]}
-            tick={{ fontSize: 12 }}
-            tickFormatter={(value) => formatarValor(value)}
-          />
-
-          <Tooltip
-            labelFormatter={(value) => {
-              const [ano, mes, dia] = value.split("-");
-              return `Data: ${dia}/${mes}/${ano}`;
-            }}
-          />
-
-          <Legend verticalAlign="top" height={36} />
-
-          {/* Meta */}
-          {dados.meta > 0 && (
-            <ReferenceLine
-              y={dados.meta}
-              stroke="rgb(28, 216, 202)"
-              strokeDasharray="5 5"
-              strokeWidth={2}
-              label={{
-                value: `Meta: ${formatarValor(dados.meta)}`,
-                position: "insideBottomRight",
-                fill: "rgb(28, 216, 202)",
-                fontSize: 12,
-              }}
+      <div className="evolucao-chart-canvas">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={dados.lista}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke="#eee"
             />
-          )}
 
-          {/* Linha Período Comparado (Fundo) */}
-          <Line
-            type="monotone"
-            dataKey="comparacao"
-            stroke="#C0C0C0"
-            strokeWidth={2}
-            dot={false}
-            name="Período Anterior"
-            connectNulls={true}
-          />
+            <XAxis
+              dataKey="dia"
+              type="category"
+              tickFormatter={(value) => {
+                if (!value) return "";
+                const [ano, mes, dia] = value.split("-");
+                return `${dia}/${mes}`;
+              }}
+              tick={{ fontSize: 12 }}
+              minTickGap={10}
+            />
 
-          {/* Linha Período Atual (Destaque) */}
-          <Line
-            type="monotone"
-            dataKey="valor" // ou "atual", dependendo de como preencherDatas retorna
-            stroke="#1890FF"
-            strokeWidth={3}
-            dot={{ r: 3, fill: "#1890FF" }}
-            activeDot={{ r: 6 }}
-            name="Período Atual"
-            connectNulls={true}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+            <YAxis
+              domain={[0, maxValor]}
+              tick={{ fontSize: 12 }}
+              tickFormatter={(value) => formatarValor(value, dados.mensuracao)}
+            />
+
+            <Tooltip
+              labelFormatter={(value) => {
+                const [ano, mes, dia] = value.split("-");
+                return `Data: ${dia}/${mes}/${ano}`;
+              }}
+              formatter={(value) => formatarValor(value, dados.mensuracao)}
+            />
+
+            <Legend verticalAlign="top" height={36} />
+
+            {/* Meta */}
+            {dados.meta > 0 && (
+              <ReferenceLine
+                y={dados.meta}
+                stroke="rgb(28, 216, 202)"
+                strokeDasharray="5 5"
+                strokeWidth={2}
+                label={{
+                  value: `Meta: ${formatarValor(dados.meta, dados.mensuracao)}`,
+                  position: "insideBottomRight",
+                  fill: "rgb(28, 216, 202)",
+                  fontSize: 12,
+                }}
+              />
+            )}
+
+            {/* Linha Período Comparado (Fundo) */}
+            <Line
+              type="monotone"
+              dataKey="comparacao"
+              stroke="#C0C0C0"
+              strokeWidth={2}
+              dot={false}
+              name="Período Anterior"
+              connectNulls={true}
+            />
+
+            {/* Linha Período Atual (Destaque) */}
+            <Line
+              type="monotone"
+              dataKey="valor" // ou "atual", dependendo de como preencherDatas retorna
+              stroke="#1890FF"
+              strokeWidth={3}
+              dot={{ r: 3, fill: "#1890FF" }}
+              activeDot={{ r: 6 }}
+              name="Período Atual"
+              connectNulls={true}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
