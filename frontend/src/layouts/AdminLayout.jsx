@@ -1,15 +1,51 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import api from "../services/api";
 import "./AdminLayout.css";
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [pendentes, setPendentes] = useState(0);
 
   function handleLogout() {
     logout();
     navigate("/login");
   }
+
+  useEffect(() => {
+    let ativo = true;
+    let intervalId;
+
+    async function carregarPendentes() {
+      if (user?.perfil !== "admin") return;
+
+      try {
+        const res = await api.get("/users/pendentes-count");
+        if (ativo) {
+          setPendentes(Number(res.data?.total) || 0);
+        }
+      } catch {
+        if (ativo) {
+          setPendentes(0);
+        }
+      }
+    }
+
+    carregarPendentes();
+    intervalId = setInterval(carregarPendentes, 30000);
+
+    return () => {
+      ativo = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [user?.perfil]);
+
+  const estaEmConfiguracoes = location.pathname.startsWith("/admin/configuracoes");
 
   return (
     <div className="admin-container">
@@ -40,7 +76,12 @@ export default function AdminLayout() {
               to="/admin/configuracoes"
               className={({ isActive }) => (isActive ? "active" : "")}
             >
-              Configurações
+              <span className="nav-link-with-badge">
+                Configurações
+                {pendentes > 0 && !estaEmConfiguracoes && (
+                  <span className="nav-badge">{pendentes}</span>
+                )}
+              </span>
             </NavLink>
           )}
         </nav>
@@ -52,7 +93,7 @@ export default function AdminLayout() {
 
       {/* CONTEÚDO */}
       <main className="admin-content">
-        <Outlet />
+        <Outlet context={{ pendentes }} />
       </main>
     </div>
   );

@@ -60,7 +60,11 @@
   color: #0f4c81;
   border: none;
   font-size: 12px;
-  cursor: not-allowed;
+  cursor: pointer;
+}
+
+.login-links button:hover {
+  text-decoration: underline;
 }
 
 .erro {

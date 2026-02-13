@@ -1,7 +1,9 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useOutletContext } from "react-router-dom";
 import "./ConfiguracoesLayout.css";
 
 export default function ConfiguracoesLayout() {
+  const { pendentes = 0 } = useOutletContext() || {};
+
   return (
     <div className="config-shell">
       <div className="config-container">
@@ -26,7 +28,12 @@ export default function ConfiguracoesLayout() {
           to="usuarios"
           className={({ isActive }) => (isActive ? "active" : "")}
         >
-          Usuários
+          <span className="config-link-with-badge">
+            Usuários
+            {pendentes > 0 && (
+              <span className="config-badge">{pendentes}</span>
+            )}
+          </span>
         </NavLink>
 
         <NavLink

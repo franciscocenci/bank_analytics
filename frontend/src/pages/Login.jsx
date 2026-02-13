@@ -63,10 +63,10 @@ export default function Login() {
         <button type="submit">Entrar</button>
 
         <div className="login-links">
-          <button type="button" disabled>
+          <button type="button" onClick={() => navigate("/criar-conta")}>
             Criar conta
           </button>
-          <button type="button" disabled>
+          <button type="button" onClick={() => navigate("/esqueci-senha")}>
             Esqueci minha senha
           </button>
         </div>

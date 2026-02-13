@@ -19,11 +19,25 @@ router.get(
   UserController.index,
 );
 
+router.get(
+  "/pendentes-count",
+  authMiddleware,
+  authorize(["admin"]),
+  UserController.pendentesCount,
+);
+
 router.get("/:id", authMiddleware, UserController.show);
 
 router.put("/:id", authMiddleware, UserController.update);
 
 router.put("/:id/reset-senha", authMiddleware, UserController.resetSenha);
+
+router.put(
+  "/:id/aprovar",
+  authMiddleware,
+  authorize(["admin"]),
+  UserController.aprovar,
+);
 
 router.delete(
   "/:id",

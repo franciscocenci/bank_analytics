@@ -26,6 +26,21 @@ module.exports = (sequelize) => {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
       },
+
+      aprovado: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+      },
+
+      resetSenhaTokenHash: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+
+      resetSenhaTokenExpiraEm: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
     },
     {
       sequelize,

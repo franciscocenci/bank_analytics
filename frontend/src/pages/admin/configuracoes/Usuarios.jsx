@@ -9,12 +9,13 @@ export default function Usuarios() {
   const [criando, setCriando] = useState(false);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
   const [perfil, setPerfil] = useState("usuario");
   const [agencias, setAgencias] = useState([]);
   const [agenciaId, setAgenciaId] = useState("");
   const [editando, setEditando] = useState(null);
   const [ordenacao, setOrdenacao] = useState({ campo: "nome", direcao: "asc" });
+  const [linkModal, setLinkModal] = useState({ open: false, link: "" });
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   function alternarOrdenacao(campo) {
     setOrdenacao((atual) => {
@@ -83,29 +84,46 @@ export default function Usuarios() {
     setAgencias(res.data);
   }
 
+  function abrirLinkModal(link) {
+    if (!link) return;
+    setLinkCopiado(false);
+    setLinkModal({ open: true, link });
+  }
+
+  function fecharLinkModal() {
+    setLinkModal({ open: false, link: "" });
+    setLinkCopiado(false);
+  }
+
+  async function copiarLink() {
+    if (!linkModal.link) return;
+
+    try {
+      await navigator.clipboard.writeText(linkModal.link);
+      setLinkCopiado(true);
+    } catch {
+      alert("Nao foi possivel copiar. Copie manualmente o link.");
+    }
+  }
+
   async function salvarUsuario() {
-    if (!nome || !email || !senha || !perfil || !agenciaId) {
+    if (!nome || !email || !perfil || !agenciaId) {
       alert("Preencha todos os campos");
       return;
     }
-
-    if (senha.length < 6) {
-      alert("A senha deve ter no mínimo 6 caracteres");
-      return;
-    }
     try {
-      await api.post("/users", {
+      const res = await api.post("/users", {
         nome,
         email,
-        senha,
         perfil,
         agenciaId: agenciaId,
       });
 
+      abrirLinkModal(res.data?.linkTrocaSenha);
+
       setCriando(false);
       setNome("");
       setEmail("");
-      setSenha("");
       setPerfil("usuario");
       setAgenciaId("");
 
@@ -137,12 +155,39 @@ export default function Usuarios() {
 
     try {
       const res = await api.put(`/users/${id}/reset-senha`);
-
-      alert(
-        `Senha resetada com sucesso!\n\nNova senha provisória: ${res.data.senhaProvisoria}`,
-      );
+      abrirLinkModal(res.data?.linkTrocaSenha);
     } catch (err) {
       alert(err.response?.data?.error || "Erro ao resetar senha");
+    }
+  }
+
+  function obterStatus(u) {
+    if (!u.aprovado) {
+      return { label: "Pendente", tipo: "pendente", acao: () => aprovarUsuario(u.id) };
+    }
+
+    if (u.trocaSenha) {
+      return {
+        label: "Aguardando senha",
+        tipo: "pendente",
+        acao: () => resetarSenha(u.id),
+      };
+    }
+
+    return { label: "Ativo", tipo: "ativo", acao: null };
+  }
+
+  async function aprovarUsuario(id) {
+    if (!window.confirm("Aprovar este usuário e gerar link de troca de senha?")) {
+      return;
+    }
+
+    try {
+      const res = await api.put(`/users/${id}/aprovar`);
+      abrirLinkModal(res.data?.linkTrocaSenha);
+      carregar();
+    } catch (err) {
+      alert(err.response?.data?.error || "Erro ao aprovar usuário");
     }
   }
 
@@ -165,7 +210,6 @@ export default function Usuarios() {
 
       setNome("");
       setEmail("");
-      setSenha("");
       setPerfil("usuario");
       setAgenciaId("");
 
@@ -183,7 +227,6 @@ export default function Usuarios() {
     setEmail(u.email);
     setPerfil(u.perfil);
     setAgenciaId(u.agenciaId);
-    setSenha(""); // nunca preenche senha
   }
 
   useEffect(() => {
@@ -244,18 +287,11 @@ export default function Usuarios() {
                 disabled={!!editando}
               />
 
-              <input
-                className="config-input"
-                type="password"
-                placeholder={
-                  editando
-                    ? "Deixe em branco para não alterar a senha"
-                    : "Senha"
-                }
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                required={!editando}
-              />
+              {!editando && (
+                <p className="config-helper">
+                  A senha será definida pelo usuário através do link de troca.
+                </p>
+              )}
 
               <select
                 className="config-select"
@@ -296,7 +332,6 @@ export default function Usuarios() {
                   setEditando(null);
                   setNome("");
                   setEmail("");
-                  setSenha("");
                   setPerfil("usuario");
                   setAgenciaId("");
                 }}
@@ -329,6 +364,7 @@ export default function Usuarios() {
                 </th>
                 <th>Email</th>
                 <th>Perfil</th>
+                <th>Status</th>
                 <th>Agência</th>
                 <th>
                   <button
@@ -360,16 +396,36 @@ export default function Usuarios() {
             <tbody>
               {usuariosOrdenados.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="config-empty">
+                  <td colSpan="8" className="config-empty">
                     Nenhum usuário cadastrado
                   </td>
                 </tr>
               ) : (
-                usuariosOrdenados.map((u) => (
+                usuariosOrdenados.map((u) => {
+                  const status = obterStatus(u);
+                  const statusDisabled = !status.acao;
+
+                  return (
                   <tr key={u.id}>
                     <td>{u.nome}</td>
                     <td>{u.email}</td>
                     <td>{u.perfil}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className={`status-pill ${
+                          status.tipo === "ativo" ? "status-ativo" : "status-pendente"
+                        }`}
+                        onClick={() => {
+                          if (status.acao) {
+                            status.acao();
+                          }
+                        }}
+                        disabled={statusDisabled}
+                      >
+                        {status.label}
+                      </button>
+                    </td>
                     <td>{u.agencia?.nome || "-"}</td>
                     <td>
                       {u.createdAt
@@ -383,6 +439,22 @@ export default function Usuarios() {
                     </td>
                     <td>
                       <div className="action-stack">
+                        {!u.aprovado && (
+                          <button
+                            className="btn-primary"
+                            onClick={() => aprovarUsuario(u.id)}
+                          >
+                            Aprovar
+                          </button>
+                        )}
+                        {u.aprovado && u.trocaSenha && (
+                          <button
+                            className="btn-secondary"
+                            onClick={() => resetarSenha(u.id)}
+                          >
+                            Gerar link
+                          </button>
+                        )}
                         <button
                           className="btn-ghost"
                           onClick={() => editarUsuario(u)}
@@ -404,12 +476,38 @@ export default function Usuarios() {
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+                })
               )}
             </tbody>
           </table>
         )}
       </section>
+
+      {linkModal.open && (
+        <div className="link-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="link-modal">
+            <h3>Link de troca de senha</h3>
+            <p>
+              Copie o link abaixo. Ele sera exibido apenas uma vez para este
+              usuario.
+            </p>
+
+            <div className="link-modal-box">
+              <input type="text" value={linkModal.link} readOnly />
+              <button type="button" className="btn-secondary" onClick={copiarLink}>
+                {linkCopiado ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+
+            <div className="link-modal-actions">
+              <button type="button" className="btn-primary" onClick={fecharLinkModal}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

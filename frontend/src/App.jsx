@@ -10,6 +10,8 @@ import Periodos from "./pages/admin/configuracoes/Periodos";
 import Produtos from "./pages/admin/configuracoes/Produtos";
 import TrocarSenha from "./pages/TrocarSenha";
 import Dashboard from "./pages/Dashboard";
+import CriarConta from "./pages/CriarConta";
+import EsqueciSenha from "./pages/EsqueciSenha";
 
 export default function App() {
   return (
@@ -17,6 +19,8 @@ export default function App() {
       <Routes>
         {/* Login */}
         <Route path="/login" element={<Login />} />
+        <Route path="/criar-conta" element={<CriarConta />} />
+        <Route path="/esqueci-senha" element={<EsqueciSenha />} />
 
         {/* Área administrativa */}
         <Route

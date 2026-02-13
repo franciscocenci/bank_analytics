@@ -54,6 +54,8 @@ async function seedAdmin() {
         email: process.env.INITIAL_ADMIN_EMAIL,
         senha: hashedPassword,
         perfil: "admin",
+        aprovado: true,
+        trocaSenha: false,
       });
 
       console.log("Primeiro administrador criado usando dados do .env.");

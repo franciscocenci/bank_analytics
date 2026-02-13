@@ -6,10 +6,13 @@ import "./Login.css"; // reaproveita o mesmo CSS
 export default function TrocarSenha() {
   const location = useLocation();
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const token = searchParams.get("token");
 
   const [email, setEmail] = useState(location.state?.email || "");
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
   const [erro, setErro] = useState("");
 
   async function handleSubmit(e) {
@@ -21,30 +24,63 @@ export default function TrocarSenha() {
       return;
     }
 
-    if (senhaAtual === novaSenha) {
+    if (!token && senhaAtual === novaSenha) {
       setErro("A nova senha não pode ser igual à senha atual");
       return;
     }
 
+    if (token && novaSenha !== confirmarSenha) {
+      setErro("As senhas não conferem");
+      return;
+    }
+
     try {
-      const res = await api.post("/auth/trocar-senha", {
-        email,
-        senhaAtual,
-        novaSenha,
-      });
+      const endpoint = token ? "/auth/trocar-senha-token" : "/auth/trocar-senha";
+      const requestUrl = api.defaults.baseURL
+        ? new URL(endpoint, api.defaults.baseURL).toString()
+        : endpoint;
 
-      const { token, user } = res.data;
+      const res = token
+        ? await api.post(requestUrl, {
+            token,
+            novaSenha,
+          })
+        : await api.post(requestUrl, {
+            email,
+            senhaAtual,
+            novaSenha,
+          });
 
-      localStorage.setItem("token", token);
+      const { token: authToken, user } = res.data;
+
+      localStorage.setItem("token", authToken);
       localStorage.setItem("user", JSON.stringify(user));
 
-      api.defaults.headers.Authorization = `Bearer ${token}`;
+      api.defaults.headers.Authorization = `Bearer ${authToken}`;
 
       navigate("/admin/dashboard");
     } catch (err) {
+      const responseData = err.response?.data;
+      const responseError =
+        responseData && typeof responseData === "object"
+          ? responseData.error || responseData.message
+          : null;
+      const statusInfo = err.response?.status
+        ? ` (status ${err.response.status})`
+        : "";
+
+      if (
+        typeof responseData === "string" &&
+        responseData.includes("<!doctype html")
+      ) {
+        setErro("Erro ao trocar senha. A API nao respondeu corretamente.");
+        return;
+      }
+
       setErro(
-        err.response?.data?.error ||
-          "Erro ao trocar senha. Verifique os dados.",
+        responseError ||
+          err.message ||
+          `Erro ao trocar senha. Verifique os dados.${statusInfo}`,
       );
     }
   }
@@ -58,16 +94,20 @@ export default function TrocarSenha() {
           sistema.
         </p>
 
-        <label>E-mail</label>
-        <input type="email" value={email} disabled />
+        {!token && (
+          <>
+            <label>E-mail</label>
+            <input type="email" value={email} disabled />
 
-        <label>Senha atual</label>
-        <input
-          type="password"
-          value={senhaAtual}
-          onChange={(e) => setSenhaAtual(e.target.value)}
-          required
-        />
+            <label>Senha atual</label>
+            <input
+              type="password"
+              value={senhaAtual}
+              onChange={(e) => setSenhaAtual(e.target.value)}
+              required
+            />
+          </>
+        )}
 
         <label>Nova senha</label>
         <input
@@ -77,7 +117,20 @@ export default function TrocarSenha() {
           required
         />
 
+        {token && (
+          <>
+            <label>Confirmar nova senha</label>
+            <input
+              type="password"
+              value={confirmarSenha}
+              onChange={(e) => setConfirmarSenha(e.target.value)}
+              required
+            />
+          </>
+        )}
+
         {erro && <p className="erro">{erro}</p>}
+
 
         <button type="submit">Salvar nova senha</button>
       </form>

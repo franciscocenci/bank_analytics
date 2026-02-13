@@ -1,21 +1,17 @@
 const { User, Agencia } = require("../models");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const { gerarResetToken, montarLinkTrocaSenha } = require("../utils/resetToken");
 
 module.exports = {
   async create(req, res) {
-    const { nome, email, senha, perfil, AgenciaId, agenciaId: agenciaIdBody } =
+    const { nome, email, perfil, AgenciaId, agenciaId: agenciaIdBody } =
       req.body;
     const agenciaId = agenciaIdBody || AgenciaId;
 
-    if (!nome || !email || !senha || !perfil || !agenciaId) {
+    if (!nome || !email || !perfil || !agenciaId) {
       return res.status(400).json({
         error: "Todos os campos são obrigatórios",
-      });
-    }
-
-    if (senha.length < 6) {
-      return res.status(400).json({
-        error: "Senha deve ter no mínimo 6 caracteres",
       });
     }
 
@@ -37,7 +33,9 @@ module.exports = {
       return res.status(400).json({ error: "Email já cadastrado" });
     }
 
-    const senhaHash = await bcrypt.hash(senha, 10);
+    const senhaTemporaria = crypto.randomBytes(12).toString("hex");
+    const senhaHash = await bcrypt.hash(senhaTemporaria, 10);
+    const { token, tokenHash, expiraEm } = gerarResetToken();
 
     const user = await User.create({
       nome,
@@ -45,14 +43,21 @@ module.exports = {
       senha: senhaHash,
       perfil,
       agenciaId,
-      trocaSenha: true, // Temporary password required.
+      trocaSenha: true,
+      aprovado: true,
+      resetSenhaTokenHash: tokenHash,
+      resetSenhaTokenExpiraEm: expiraEm,
     });
+
+    const linkTrocaSenha = montarLinkTrocaSenha(token, req.get("origin"));
 
     return res.status(201).json({
       id: user.id,
       nome: user.nome,
       email: user.email,
       perfil: user.perfil,
+      aprovado: user.aprovado,
+      linkTrocaSenha,
     });
   },
 
@@ -80,6 +85,17 @@ module.exports = {
 
     const usuarios = await User.findAll({
       where,
+      attributes: [
+        "id",
+        "nome",
+        "email",
+        "perfil",
+        "agenciaId",
+        "aprovado",
+        "trocaSenha",
+        "createdAt",
+        "updatedAt",
+      ],
       include: [
         {
           model: Agencia,
@@ -186,18 +202,50 @@ module.exports = {
       }
     }
 
-    // Generate a temporary password.
-    const senhaProvisoria = "123456"; // depois podemos melhorar isso
-    const senhaHash = await bcrypt.hash(senhaProvisoria, 10);
+    const { token, tokenHash, expiraEm } = gerarResetToken();
+    const linkTrocaSenha = montarLinkTrocaSenha(token, req.get("origin"));
 
     await user.update({
-      senha: senhaHash,
       trocaSenha: true,
+      resetSenhaTokenHash: tokenHash,
+      resetSenhaTokenExpiraEm: expiraEm,
     });
 
     return res.json({
-      message: "Senha resetada com sucesso",
-      senhaProvisoria, // Consider hiding this in the UI.
+      message: "Link de troca de senha gerado",
+      linkTrocaSenha,
+    });
+  },
+
+  async aprovar(req, res) {
+    if (req.userPerfil !== "admin") {
+      return res.status(403).json({
+        error: "Somente admin pode aprovar usuários",
+      });
+    }
+
+    const { id } = req.params;
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({
+        error: "Usuário não encontrado",
+      });
+    }
+
+    const { token, tokenHash, expiraEm } = gerarResetToken();
+    const linkTrocaSenha = montarLinkTrocaSenha(token, req.get("origin"));
+
+    await user.update({
+      aprovado: true,
+      trocaSenha: true,
+      resetSenhaTokenHash: tokenHash,
+      resetSenhaTokenExpiraEm: expiraEm,
+    });
+
+    return res.json({
+      message: "Usuário aprovado e link gerado",
+      linkTrocaSenha,
     });
   },
 
@@ -233,5 +281,14 @@ module.exports = {
 
     await user.destroy();
     return res.status(204).send();
+  },
+
+  async pendentesCount(req, res) {
+    if (req.userPerfil !== "admin") {
+      return res.status(403).json({ error: "Somente admin" });
+    }
+
+    const total = await User.count({ where: { aprovado: false } });
+    return res.json({ total });
   },
 };
