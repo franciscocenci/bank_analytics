@@ -106,6 +106,89 @@
   font-weight: bold;
 }
 
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #ffffff;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: Poppins, Calibri, sans-serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.nav-toggle:hover {
+  background-color: #145a86;
+}
+
+.nav-toggle.active {
+  background-color: #1f78b4;
+  font-weight: 700;
+}
+
+.nav-caret {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.nav-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 12px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-6px);
+  transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.nav-submenu.open {
+  max-height: 260px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.nav-subitem {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: Poppins, Calibri, sans-serif;
+  transition: background-color 0.2s;
+}
+
+.nav-subitem-button {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-subitem:hover {
+  background-color: #145a86;
+}
+
+.nav-subitem.active {
+  background-color: rgba(31, 120, 180, 0.85);
+  font-weight: 600;
+}
+
 /* BOTÃO SAIR */
 .admin-sidebar .logout {
   margin-top: auto; /* empurra para o final */

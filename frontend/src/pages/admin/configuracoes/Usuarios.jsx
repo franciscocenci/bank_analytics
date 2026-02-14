@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import api from "../../../services/api";
 import { formatarDataHoraBR, tempoRelativo } from "../../../utils/date";
+import { useAuth } from "../../../contexts/AuthContext";
 import "./ConfiguracoesAdmin.css";
 
 export default function Usuarios() {
+  const { user } = useAuth();
+  const isAdmin = user?.perfil === "admin";
+  const isGerente = user?.perfil === "gerente";
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [criando, setCriando] = useState(false);
@@ -163,7 +167,11 @@ export default function Usuarios() {
 
   function obterStatus(u) {
     if (!u.aprovado) {
-      return { label: "Pendente", tipo: "pendente", acao: () => aprovarUsuario(u.id) };
+      return {
+        label: "Pendente",
+        tipo: "pendente",
+        acao: isAdmin ? () => aprovarUsuario(u.id) : null,
+      };
     }
 
     if (u.trocaSenha) {
@@ -247,13 +255,15 @@ export default function Usuarios() {
           </p>
         </div>
         <div className="config-header-actions">
-          <button className="btn-primary" onClick={() => setCriando(true)}>
-            Novo usuário
-          </button>
+          {isAdmin && (
+            <button className="btn-primary" onClick={() => setCriando(true)}>
+              Novo usuário
+            </button>
+          )}
         </div>
       </header>
 
-      {criando && (
+      {isAdmin && criando && (
         <section className="config-card config-panel">
           <h3>{editando ? "Editar usuário" : "Novo usuário"}</h3>
 
@@ -439,7 +449,7 @@ export default function Usuarios() {
                     </td>
                     <td>
                       <div className="action-stack">
-                        {!u.aprovado && (
+                        {isAdmin && !u.aprovado && (
                           <button
                             className="btn-primary"
                             onClick={() => aprovarUsuario(u.id)}
@@ -447,7 +457,7 @@ export default function Usuarios() {
                             Aprovar
                           </button>
                         )}
-                        {u.aprovado && u.trocaSenha && (
+                        {isAdmin && u.aprovado && u.trocaSenha && (
                           <button
                             className="btn-secondary"
                             onClick={() => resetarSenha(u.id)}
@@ -455,24 +465,30 @@ export default function Usuarios() {
                             Gerar link
                           </button>
                         )}
-                        <button
-                          className="btn-ghost"
-                          onClick={() => editarUsuario(u)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => resetarSenha(u.id)}
-                        >
-                          Resetar senha
-                        </button>
-                        <button
-                          className="btn-danger"
-                          onClick={() => excluirUsuario(u.id)}
-                        >
-                          Excluir
-                        </button>
+                        {isAdmin && (
+                          <button
+                            className="btn-ghost"
+                            onClick={() => editarUsuario(u)}
+                          >
+                            Editar
+                          </button>
+                        )}
+                        {(isAdmin || isGerente) && (
+                          <button
+                            className="btn-secondary"
+                            onClick={() => resetarSenha(u.id)}
+                          >
+                            Resetar senha
+                          </button>
+                        )}
+                        {(isAdmin || isGerente) && (
+                          <button
+                            className="btn-danger"
+                            onClick={() => excluirUsuario(u.id)}
+                          >
+                            Excluir
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

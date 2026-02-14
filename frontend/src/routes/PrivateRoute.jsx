@@ -1,7 +1,11 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-export default function PrivateRoute({ children, adminOnly = false }) {
+export default function PrivateRoute({
+  children,
+  adminOnly = false,
+  allowedRoles = null,
+}) {
   const { user, loading } = useAuth();
 
   if (loading) return null;
@@ -11,6 +15,10 @@ export default function PrivateRoute({ children, adminOnly = false }) {
   }
 
   if (adminOnly && user.perfil !== "admin") {
+    return <p>Acesso restrito</p>;
+  }
+
+  if (Array.isArray(allowedRoles) && !allowedRoles.includes(user.perfil)) {
     return <p>Acesso restrito</p>;
   }
 

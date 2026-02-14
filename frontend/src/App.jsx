@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import PrivateRoute from "./routes/PrivateRoute";
 import AdminLayout from "./layouts/AdminLayout";
@@ -36,16 +36,52 @@ export default function App() {
           <Route
             path="configuracoes"
             element={
-              <PrivateRoute adminOnly>
+              <PrivateRoute allowedRoles={["admin", "gerente"]}>
                 <ConfiguracoesLayout />
               </PrivateRoute>
             }
           >
-            <Route path="importacao" element={<Importacao />} />
-            <Route path="agencias" element={<Agencias />} />
-            <Route path="usuarios" element={<Usuarios />} />
-            <Route path="periodos" element={<Periodos />} />
-            <Route path="produtos" element={<Produtos />} />
+            <Route index element={<Navigate to="usuarios" replace />} />
+            <Route
+              path="importacao"
+              element={
+                <PrivateRoute adminOnly>
+                  <Importacao />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="agencias"
+              element={
+                <PrivateRoute adminOnly>
+                  <Agencias />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="usuarios"
+              element={
+                <PrivateRoute allowedRoles={["admin", "gerente"]}>
+                  <Usuarios />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="periodos"
+              element={
+                <PrivateRoute adminOnly>
+                  <Periodos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="produtos"
+              element={
+                <PrivateRoute adminOnly>
+                  <Produtos />
+                </PrivateRoute>
+              }
+            />
           </Route>
         </Route>
         {/* Trocar senha */}

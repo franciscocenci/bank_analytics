@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: 40px;
   padding: 24px 20px 40px;
+  scroll-behavior: smooth;
 }
 
 .dashboard-title {
@@ -15,6 +16,7 @@
   background: #f8fafc;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
+  scroll-margin-top: 20px;
 }
 
 .dashboard-section--chart {

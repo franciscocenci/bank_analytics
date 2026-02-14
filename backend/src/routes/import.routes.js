@@ -14,10 +14,17 @@ router.post(
 );
 
 router.get(
-  "/vendas/progresso/:jobId",
+  "/vendas/status/:jobId",
   auth,
   authorize(["admin"]),
-  ImportController.progressoImportacao,
+  ImportController.statusImportacao,
+);
+
+router.get(
+  "/vendas/historico",
+  auth,
+  authorize(["admin"]),
+  ImportController.listarImportacoes,
 );
 
 module.exports = router;

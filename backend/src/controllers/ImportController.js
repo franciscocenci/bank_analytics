@@ -1,13 +1,11 @@
 const xlsx = require("xlsx");
 const crypto = require("crypto");
-const { VendaMeta, Agencia, Produto, sequelize } = require("../models");
+const { ImportJob, VendaMeta, Agencia, Produto, sequelize } = require("../models");
 
-const importJobs = new Map();
-const JOB_TTL_MS = 1000 * 60 * 30;
-
-function criarJob() {
-  const id = crypto.randomUUID();
-  importJobs.set(id, {
+async function criarJob(userId) {
+  const jobId = crypto.randomUUID();
+  await ImportJob.create({
+    id: jobId,
     status: "processando",
     percentual: 0,
     processadas: 0,
@@ -20,23 +18,14 @@ function criarJob() {
       erros: [],
     },
     message: "Importação iniciada",
-    updatedAt: Date.now(),
+    userId,
   });
-  return id;
+
+  return jobId;
 }
 
-function atualizarJob(jobId, patch) {
-  const job = importJobs.get(jobId);
-  if (!job) return null;
-  const atualizado = { ...job, ...patch, updatedAt: Date.now() };
-  importJobs.set(jobId, atualizado);
-  return atualizado;
-}
-
-function finalizarJob(jobId) {
-  setTimeout(() => {
-    importJobs.delete(jobId);
-  }, JOB_TTL_MS);
+async function atualizarJob(jobId, patch) {
+  await ImportJob.update(patch, { where: { id: jobId } });
 }
 
 function excelDateToISO(excelDate) {
@@ -52,6 +41,13 @@ function excelDateToISO(excelDate) {
 
 async function processarImportacao({ jobId, file, userId }) {
   const transaction = await sequelize.transaction();
+  let relatorio = {
+    inseridos: 0,
+    atualizados: 0,
+    criadas: 0,
+    ignorados: 0,
+    erros: [],
+  };
 
   try {
     const workbook = xlsx.read(file.buffer, { type: "buffer" });
@@ -59,16 +55,15 @@ async function processarImportacao({ jobId, file, userId }) {
     const rows = xlsx.utils.sheet_to_json(sheet);
 
     if (!rows.length) {
-      atualizarJob(jobId, {
+      await atualizarJob(jobId, {
         status: "erro",
         message: "Planilha vazia",
       });
       await transaction.rollback();
-      finalizarJob(jobId);
       return;
     }
 
-    atualizarJob(jobId, { total: rows.length });
+    await atualizarJob(jobId, { total: rows.length });
 
     for (let i = 0; i < rows.length; i++) {
       const linhaExcel = i + 2; // Header is row 1.
@@ -79,15 +74,12 @@ async function processarImportacao({ jobId, file, userId }) {
       const dataConvertida = excelDateToISO(data_ref);
 
       if (!data_ref || !cod_ag || !produto) {
-        const job = importJobs.get(jobId);
-        job.relatorio.erros.push({
+        relatorio.erros.push({
           linha: linhaExcel,
           erro: "Campos obrigatórios ausentes",
         });
-        job.relatorio.ignorados++;
-        atualizarJob(jobId, {
-          relatorio: job.relatorio,
-        });
+        relatorio.ignorados++;
+        await atualizarJob(jobId, { relatorio });
         continue;
       }
 
@@ -115,11 +107,8 @@ async function processarImportacao({ jobId, file, userId }) {
           },
           { transaction },
         );
-        const job = importJobs.get(jobId);
-        job.relatorio.criadas++;
-        atualizarJob(jobId, {
-          relatorio: job.relatorio,
-        });
+        relatorio.criadas++;
+        await atualizarJob(jobId, { relatorio });
       }
 
       const dadosVenda = {
@@ -142,24 +131,18 @@ async function processarImportacao({ jobId, file, userId }) {
 
       if (existente) {
         await existente.update(dadosVenda, { transaction });
-        const job = importJobs.get(jobId);
-        job.relatorio.atualizados++;
-        atualizarJob(jobId, {
-          relatorio: job.relatorio,
-        });
+        relatorio.atualizados++;
+        await atualizarJob(jobId, { relatorio });
       } else {
         await VendaMeta.create(dadosVenda, { transaction });
-        const job = importJobs.get(jobId);
-        job.relatorio.inseridos++;
-        atualizarJob(jobId, {
-          relatorio: job.relatorio,
-        });
+        relatorio.inseridos++;
+        await atualizarJob(jobId, { relatorio });
       }
 
       const processadas = i + 1;
       const total = rows.length;
       const percentual = total ? Math.round((processadas / total) * 100) : 0;
-      atualizarJob(jobId, {
+      await atualizarJob(jobId, {
         processadas,
         total,
         percentual,
@@ -167,21 +150,21 @@ async function processarImportacao({ jobId, file, userId }) {
     }
 
     await transaction.commit();
-    atualizarJob(jobId, {
+    await atualizarJob(jobId, {
       status: "concluido",
       percentual: 100,
+      relatorio,
       message: "Importação concluída com sucesso",
     });
-    finalizarJob(jobId);
   } catch (err) {
     await transaction.rollback();
     console.error("Erro no upload:", err);
-    atualizarJob(jobId, {
+    await atualizarJob(jobId, {
       status: "erro",
       message: "Erro ao importar planilha",
       error: err.message,
+      relatorio,
     });
-    finalizarJob(jobId);
   }
 }
 
@@ -195,8 +178,8 @@ module.exports = {
       return res.status(400).json({ error: "Arquivo não enviado" });
     }
 
-    const jobId = criarJob();
     const userId = req.userId;
+    const jobId = await criarJob(userId);
 
     setImmediate(() => {
       processarImportacao({ jobId, file: req.file, userId });
@@ -208,40 +191,57 @@ module.exports = {
     });
   },
 
-  async progressoImportacao(req, res) {
+  async statusImportacao(req, res) {
     const { jobId } = req.params;
-    const job = importJobs.get(jobId);
+    const job = await ImportJob.findByPk(jobId);
 
     if (!job) {
       return res.status(404).json({ error: "Importação não encontrada" });
     }
 
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.flushHeaders();
+    return res.json(job);
+  },
 
-    const enviar = () => {
-      const payload = importJobs.get(jobId);
-      if (!payload) {
-        res.write(`data: ${JSON.stringify({ status: "erro", message: "Importação não encontrada" })}\n\n`);
-        res.end();
-        return;
-      }
+  async listarImportacoes(req, res) {
+    if (req.userPerfil !== "admin") {
+      return res.status(403).json({ error: "Apenas admin pode consultar" });
+    }
 
-      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    const limit = Math.min(Number(req.query.limit) || 10, 50);
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const offset = (page - 1) * limit;
+    const status = typeof req.query.status === "string" ? req.query.status : "";
+    const where = {};
 
-      if (payload.status === "concluido" || payload.status === "erro") {
-        clearInterval(intervalId);
-        res.end();
-      }
-    };
+    if (status && status !== "todos") {
+      where.status = status;
+    }
 
-    enviar();
-    const intervalId = setInterval(enviar, 400);
+    const { rows, count } = await ImportJob.findAndCountAll({
+      order: [["createdAt", "DESC"]],
+      limit,
+      offset,
+      where,
+      attributes: [
+        "id",
+        "status",
+        "percentual",
+        "processadas",
+        "total",
+        "message",
+        "error",
+        "createdAt",
+        "updatedAt",
+      ],
+    });
 
-    req.on("close", () => {
-      clearInterval(intervalId);
+    const pages = Math.max(Math.ceil(count / limit), 1);
+
+    return res.json({
+      items: rows,
+      total: count,
+      page,
+      pages,
     });
   },
 };

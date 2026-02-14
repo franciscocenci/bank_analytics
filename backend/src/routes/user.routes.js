@@ -8,7 +8,7 @@ const router = express.Router();
 router.post(
   "/",
   authMiddleware,
-  authorize(["admin", "gerente"]),
+  authorize(["admin"]),
   UserController.create,
 );
 
@@ -30,7 +30,12 @@ router.get("/:id", authMiddleware, UserController.show);
 
 router.put("/:id", authMiddleware, UserController.update);
 
-router.put("/:id/reset-senha", authMiddleware, UserController.resetSenha);
+router.put(
+  "/:id/reset-senha",
+  authMiddleware,
+  authorize(["admin", "gerente"]),
+  UserController.resetSenha,
+);
 
 router.put(
   "/:id/aprovar",
@@ -42,7 +47,7 @@ router.put(
 router.delete(
   "/:id",
   authMiddleware,
-  authorize(["admin"]),
+  authorize(["admin", "gerente"]),
   UserController.delete,
 );
 

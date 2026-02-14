@@ -24,52 +24,68 @@ export default function Importacao() {
   const [progresso, setProgresso] = useState(estadoInicial);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState(null);
-  const sourceRef = useRef(null);
+  const [historico, setHistorico] = useState([]);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const [statusFiltro, setStatusFiltro] = useState("todos");
+  const pollingRef = useRef(null);
 
   useEffect(() => {
     return () => {
-      if (sourceRef.current) {
-        sourceRef.current.close();
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
       }
     };
   }, []);
 
-  const iniciarSSE = (jobId) => {
-    const baseURL = api.defaults.baseURL || "";
-    const token = localStorage.getItem("token");
-    const url = `${baseURL}/import/vendas/progresso/${jobId}?token=${encodeURIComponent(
-      token || "",
-    )}`;
+  async function carregarHistorico(page = pagina, status = statusFiltro) {
+    try {
+      setCarregandoHistorico(true);
+      const res = await api.get("/import/vendas/historico", {
+        params: { limit: 6, page, status },
+      });
+      setHistorico(res.data?.items || []);
+      setPagina(res.data?.page || 1);
+      setTotalPaginas(res.data?.pages || 1);
+    } catch (err) {
+      console.error("Erro ao buscar histórico", err);
+    } finally {
+      setCarregandoHistorico(false);
+    }
+  }
 
-    if (sourceRef.current) {
-      sourceRef.current.close();
+  const iniciarPolling = (jobId) => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
     }
 
-    const source = new EventSource(url);
-    sourceRef.current = source;
+    const buscarStatus = async () => {
+      try {
+        const res = await api.get(`/import/vendas/status/${jobId}`);
+        const payload = res.data;
+        setProgresso(payload);
+        setResultado(payload.relatorio || null);
 
-    source.onmessage = (event) => {
-      const payload = JSON.parse(event.data);
-      setProgresso(payload);
-      setResultado(payload.relatorio || null);
+        if (payload.status === "concluido") {
+          setLoading(false);
+          clearInterval(pollingRef.current);
+        }
 
-      if (payload.status === "concluido") {
+        if (payload.status === "erro") {
+          setLoading(false);
+          setErro(payload.message || "Erro ao importar planilha");
+          clearInterval(pollingRef.current);
+        }
+      } catch (err) {
         setLoading(false);
-        source.close();
-      }
-
-      if (payload.status === "erro") {
-        setLoading(false);
-        setErro(payload.message || "Erro ao importar planilha");
-        source.close();
+        setErro("Falha ao acompanhar o progresso da importação");
+        clearInterval(pollingRef.current);
       }
     };
 
-    source.onerror = () => {
-      setLoading(false);
-      setErro("Falha ao acompanhar o progresso da importação");
-      source.close();
-    };
+    buscarStatus();
+    pollingRef.current = setInterval(buscarStatus, 1000);
   };
 
   const enviar = async () => {
@@ -93,19 +109,27 @@ export default function Importacao() {
           "Content-Type": "multipart/form-data",
         },
       });
-      iniciarSSE(res.data.jobId);
+      iniciarPolling(res.data.jobId);
+      carregarHistorico(1, statusFiltro);
     } catch (err) {
       console.error(err);
 
+      setLoading(false);
       setErro(
         err.response?.data?.error ||
           err.response?.data?.message ||
           "Erro ao importar planilha",
       );
-    } finally {
-      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    carregarHistorico();
+  }, []);
+
+  useEffect(() => {
+    carregarHistorico(1, statusFiltro);
+  }, [statusFiltro]);
 
   return (
     <div className="importacao-page">
@@ -205,6 +229,76 @@ export default function Importacao() {
           )}
         </div>
       )}
+
+      <section className="importacao-historico">
+        <div className="historico-header">
+          <h3>Histórico de importações</h3>
+          <div className="historico-actions">
+            <select
+              value={statusFiltro}
+              onChange={(e) => setStatusFiltro(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              <option value="processando">Processando</option>
+              <option value="concluido">Concluído</option>
+              <option value="erro">Erro</option>
+            </select>
+            <button type="button" onClick={() => carregarHistorico()}>
+              Atualizar
+            </button>
+          </div>
+        </div>
+
+        {carregandoHistorico ? (
+          <p>Carregando histórico...</p>
+        ) : historico.length === 0 ? (
+          <p>Nenhuma importação encontrada.</p>
+        ) : (
+          <div className="historico-grid">
+            {historico.map((item) => (
+              <div key={item.id} className="historico-card">
+                <div className="historico-topo">
+                  <span className={`status-pill status-${item.status}`}>
+                    {item.status === "processando" && "Importando"}
+                    {item.status === "concluido" && "Concluído"}
+                    {item.status === "erro" && "Erro"}
+                  </span>
+                  <span className="historico-meta">
+                    {item.processadas} / {item.total}
+                  </span>
+                </div>
+                <strong>{item.message || "Importação"}</strong>
+                {item.error && <p className="historico-erro">{item.error}</p>}
+                <span className="historico-data">
+                  {new Date(item.createdAt).toLocaleString("pt-BR")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {totalPaginas > 1 && (
+          <div className="historico-paginacao">
+            <button
+              type="button"
+              onClick={() => carregarHistorico(pagina - 1, statusFiltro)}
+              disabled={pagina <= 1}
+            >
+              Anterior
+            </button>
+            <span>
+              Página {pagina} de {totalPaginas}
+            </span>
+            <button
+              type="button"
+              onClick={() => carregarHistorico(pagina + 1, statusFiltro)}
+              disabled={pagina >= totalPaginas}
+            >
+              Próxima
+            </button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

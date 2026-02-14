@@ -9,7 +9,7 @@ function checkPostgresConnection() {
       checkPostgresConnection();
       return;
     }
-    process.stdout.write("\nPostgres está aceitando conexões.\n");
+    console.log("\n🟢 Postgres está aceitando conexões!\n");
   }
 }
 

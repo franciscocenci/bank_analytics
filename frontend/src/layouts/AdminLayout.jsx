@@ -9,6 +9,18 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendentes, setPendentes] = useState(0);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const isAdmin = user?.perfil === "admin";
+  const isGerente = user?.perfil === "gerente";
+  const isConfigRoute = location.pathname.startsWith("/admin/configuracoes");
+  const isDashboardRoute = location.pathname.startsWith("/admin/dashboard");
+  const dashboardActiveId = isDashboardRoute
+    ? location.hash.replace("#", "")
+    : "";
+  const configDefaultRoute = isAdmin
+    ? "/admin/configuracoes/importacao"
+    : "/admin/configuracoes/usuarios";
 
   function handleLogout() {
     logout();
@@ -45,7 +57,61 @@ export default function AdminLayout() {
     };
   }, [user?.perfil]);
 
-  const estaEmConfiguracoes = location.pathname.startsWith("/admin/configuracoes");
+  useEffect(() => {
+    if (isConfigRoute) {
+      setConfigOpen(true);
+    }
+  }, [isConfigRoute]);
+
+  useEffect(() => {
+    if (isDashboardRoute) {
+      setDashboardOpen(true);
+      return;
+    }
+    setDashboardOpen(false);
+  }, [isDashboardRoute]);
+
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    const container = document.querySelector(".admin-content");
+    if (!el || !container) return;
+
+    const inicio = container.scrollTop;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const destino = elRect.top - containerRect.top + container.scrollTop - 16;
+    const duracao = 700;
+    let inicioTempo = null;
+
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+    const animar = (tempo) => {
+      if (inicioTempo === null) inicioTempo = tempo;
+      const progresso = Math.min((tempo - inicioTempo) / duracao, 1);
+      const fator = easeOutCubic(progresso);
+      container.scrollTop = inicio + (destino - inicio) * fator;
+      if (progresso < 1) {
+        requestAnimationFrame(animar);
+      }
+    };
+
+    requestAnimationFrame(animar);
+  };
+
+  const irParaGrafico = (id) => {
+    setDashboardOpen(true);
+    setConfigOpen(false);
+
+    if (isDashboardRoute) {
+      const hashAtual = location.hash.replace("#", "");
+      if (hashAtual === id) {
+        scrollToSection(id);
+        return;
+      }
+    }
+
+    navigate(`/admin/dashboard#${id}`);
+  };
 
   return (
     <div className="admin-container">
@@ -64,25 +130,130 @@ export default function AdminLayout() {
         </div>
 
         <nav>
-          <NavLink
-            to="/admin/dashboard"
-            className={({ isActive }) => (isActive ? "active" : "")}
-          >
-            Dashboard
-          </NavLink>
-
-          {user?.perfil === "admin" && (
+          <div className={`nav-group ${dashboardOpen ? "open" : ""}`}>
             <NavLink
-              to="/admin/configuracoes"
+              to="/admin/dashboard"
               className={({ isActive }) => (isActive ? "active" : "")}
+              onClick={() => {
+                setConfigOpen(false);
+                setDashboardOpen(true);
+              }}
             >
-              <span className="nav-link-with-badge">
-                Configurações
-                {pendentes > 0 && !estaEmConfiguracoes && (
-                  <span className="nav-badge">{pendentes}</span>
-                )}
-              </span>
+              Dashboard
             </NavLink>
+
+            <div
+              className={`nav-submenu ${dashboardOpen ? "open" : ""}`}
+              aria-hidden={!dashboardOpen}
+            >
+              <button
+                type="button"
+                className={`nav-subitem nav-subitem-button${
+                  dashboardActiveId === "grafico-ranking" ? " active" : ""
+                }`}
+                onClick={() => irParaGrafico("grafico-ranking")}
+              >
+                Ranking
+              </button>
+              <button
+                type="button"
+                className={`nav-subitem nav-subitem-button${
+                  dashboardActiveId === "grafico-evolucao" ? " active" : ""
+                }`}
+                onClick={() => irParaGrafico("grafico-evolucao")}
+              >
+                Evolução
+              </button>
+              <button
+                type="button"
+                className={`nav-subitem nav-subitem-button${
+                  dashboardActiveId === "grafico-resumo" ? " active" : ""
+                }`}
+                onClick={() => irParaGrafico("grafico-resumo")}
+              >
+                Resumo
+              </button>
+            </div>
+          </div>
+
+          {(isAdmin || isGerente) && (
+            <div className={`nav-group ${configOpen ? "open" : ""}`}>
+              <button
+                type="button"
+                className={`nav-toggle${isConfigRoute ? " active" : ""}`}
+                onClick={() => {
+                  const next = !configOpen;
+                  setConfigOpen(next);
+                  if (next) {
+                    setDashboardOpen(false);
+                  }
+                  if (next && !isConfigRoute) {
+                    navigate(configDefaultRoute);
+                  }
+                }}
+              >
+                <span>Configurações</span>
+              </button>
+
+              <div
+                className={`nav-submenu ${configOpen ? "open" : ""}`}
+                aria-hidden={!configOpen}
+              >
+                  {isAdmin && (
+                    <NavLink
+                      to="/admin/configuracoes/importacao"
+                      className={({ isActive }) =>
+                        isActive ? "nav-subitem active" : "nav-subitem"
+                      }
+                    >
+                      Importação
+                    </NavLink>
+                  )}
+                  {isAdmin && (
+                    <NavLink
+                      to="/admin/configuracoes/agencias"
+                      className={({ isActive }) =>
+                        isActive ? "nav-subitem active" : "nav-subitem"
+                      }
+                    >
+                      Agências
+                    </NavLink>
+                  )}
+                  <NavLink
+                    to="/admin/configuracoes/usuarios"
+                    className={({ isActive }) =>
+                      isActive ? "nav-subitem active" : "nav-subitem"
+                    }
+                  >
+                    <span className="nav-link-with-badge">
+                      Usuários
+                      {isAdmin && pendentes > 0 && (
+                        <span className="nav-badge">{pendentes}</span>
+                      )}
+                    </span>
+                  </NavLink>
+                  {isAdmin && (
+                    <NavLink
+                      to="/admin/configuracoes/periodos"
+                      className={({ isActive }) =>
+                        isActive ? "nav-subitem active" : "nav-subitem"
+                      }
+                    >
+                      Períodos
+                    </NavLink>
+                  )}
+                  {isAdmin && (
+                    <NavLink
+                      to="/admin/configuracoes/produtos"
+                      className={({ isActive }) =>
+                        isActive ? "nav-subitem active" : "nav-subitem"
+                      }
+                    >
+                      Produtos
+                    </NavLink>
+                  )}
+              </div>
+            </div>
           )}
         </nav>
 

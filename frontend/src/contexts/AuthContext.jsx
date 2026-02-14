@@ -31,6 +31,10 @@ export function AuthProvider({ children }) {
 
       // Temporary password flow.
       if (res.data.trocaSenha) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        delete api.defaults.headers.Authorization;
+        setUser(null);
         return {
           trocaSenha: true,
           user: res.data.user,

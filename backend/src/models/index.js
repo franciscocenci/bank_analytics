@@ -1,17 +1,5 @@
 const { Sequelize } = require("sequelize");
-require("dotenv").config();
-
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASS,
-  {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: "postgres",
-    logging: false,
-  },
-);
+const sequelize = require("../config/database");
 
 const db = {};
 
@@ -24,6 +12,7 @@ db.User = require("./User")(sequelize);
 db.VendaMeta = require("./VendaMeta")(sequelize);
 db.Periodo = require("./Periodo")(sequelize);
 db.Produto = require("./Produto")(sequelize);
+db.ImportJob = require("./ImportJob")(sequelize);
 
 // Associations.
 // User <-> Agency.
@@ -45,5 +34,9 @@ db.VendaMeta.belongsTo(db.Produto, { foreignKey: "produtoId", as: "produto" });
 // Period <-> VendaMeta.
 db.Periodo.hasMany(db.VendaMeta, { foreignKey: "periodoId", as: "vendas" });
 db.VendaMeta.belongsTo(db.Periodo, { foreignKey: "periodoId", as: "periodo" });
+
+// User <-> ImportJob.
+db.User.hasMany(db.ImportJob, { foreignKey: "userId", as: "importacoes" });
+db.ImportJob.belongsTo(db.User, { foreignKey: "userId", as: "usuario" });
 
 module.exports = db;

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import RankingProduto from "../components/RankingProduto";
 import IndicadorProduto from "../components/IndicadorProduto";
@@ -7,6 +8,11 @@ import "../styles/dashboard.css";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Dashboard() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const ignoreHashScrollRef = useRef(false);
+  const isAnimatingScrollRef = useRef(false);
+  const scrollAnimTimerRef = useRef(null);
   const { user } = useAuth();
   const isAdmin = user?.perfil === "admin";
   const [resumo, setResumo] = useState(null);
@@ -197,6 +203,104 @@ export default function Dashboard() {
     localStorage.setItem("dashboardResumoOrdenacao", ordenacaoResumo);
   }, [ordenacaoResumo]);
 
+  useEffect(() => {
+    if (!location.hash) return;
+    if (ignoreHashScrollRef.current) {
+      ignoreHashScrollRef.current = false;
+      return;
+    }
+    const alvo = location.hash.replace("#", "");
+    const el = document.getElementById(alvo);
+    const container = document.querySelector(".admin-content");
+    if (!el || !container) return;
+
+    const inicio = container.scrollTop;
+    const containerRect = container.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const destino = elRect.top - containerRect.top + container.scrollTop - 16;
+    const duracao = 700;
+    let inicioTempo = null;
+
+    const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+    const animar = (tempo) => {
+      if (inicioTempo === null) inicioTempo = tempo;
+      const progresso = Math.min((tempo - inicioTempo) / duracao, 1);
+      const fator = easeOutCubic(progresso);
+      container.scrollTop = inicio + (destino - inicio) * fator;
+      if (progresso < 1) {
+        requestAnimationFrame(animar);
+      }
+    };
+
+    isAnimatingScrollRef.current = true;
+    if (scrollAnimTimerRef.current) {
+      clearTimeout(scrollAnimTimerRef.current);
+    }
+    scrollAnimTimerRef.current = setTimeout(() => {
+      isAnimatingScrollRef.current = false;
+    }, duracao + 80);
+
+    requestAnimationFrame(animar);
+  }, [location.hash]);
+
+  useEffect(() => {
+    const container = document.querySelector(".admin-content");
+    if (!container) return;
+
+    const sectionIds = ["grafico-ranking", "grafico-evolucao", "grafico-resumo"];
+    let ticking = false;
+
+    const atualizarHash = () => {
+      ticking = false;
+      if (isAnimatingScrollRef.current) return;
+      const containerRect = container.getBoundingClientRect();
+      const offsetTop = containerRect.top + 80;
+
+      let alvoAtual = sectionIds[0];
+      let menorDist = Number.POSITIVE_INFINITY;
+
+      sectionIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const dist = Math.abs(el.getBoundingClientRect().top - offsetTop);
+        if (dist < menorDist) {
+          menorDist = dist;
+          alvoAtual = id;
+        }
+      });
+
+      if (location.hash.replace("#", "") !== alvoAtual) {
+        ignoreHashScrollRef.current = true;
+        navigate(
+          { pathname: location.pathname, hash: `#${alvoAtual}` },
+          { replace: true },
+        );
+      }
+    };
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(atualizarHash);
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    atualizarHash();
+
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+    };
+  }, [location.hash, location.pathname, navigate]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollAnimTimerRef.current) {
+        clearTimeout(scrollAnimTimerRef.current);
+      }
+    };
+  }, []);
+
 
   const diasTotais = resumo?.periodo?.diasTotais ?? 0;
   const diasDecorridos = resumo?.periodo?.diasDecorridos ?? 0;
@@ -230,7 +334,7 @@ export default function Dashboard() {
 
       {resumo && (
         <>
-          <section className="dashboard-section">
+          <section className="dashboard-section" id="grafico-ranking">
             <h2>Ranking de Agências por Produto</h2>
 
             <div className="ranking-grid">
@@ -246,7 +350,10 @@ export default function Dashboard() {
 
           </section>
 
-          <section className="dashboard-section dashboard-section--chart">
+          <section
+            className="dashboard-section dashboard-section--chart"
+            id="grafico-evolucao"
+          >
             <h2>Gráfico de Evolução de Vendas</h2>
 
             <div className="dashboard-filtros">
@@ -322,7 +429,7 @@ export default function Dashboard() {
             )}
           </section>
 
-          <section className="dashboard-section">
+          <section className="dashboard-section" id="grafico-resumo">
             <h2>Resumo do Período Atual</h2>
 
             <div className="dashboard-filtros">

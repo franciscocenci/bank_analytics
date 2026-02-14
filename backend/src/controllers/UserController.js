@@ -16,9 +16,9 @@ module.exports = {
     }
 
     // Profile-based creation rules.
-    if (req.userPerfil === "gerente" && perfil !== "usuario") {
+    if (req.userPerfil === "gerente") {
       return res.status(403).json({
-        error: "Gerente só pode criar usuário comum",
+        error: "Gerente não pode criar usuários",
       });
     }
 
@@ -172,10 +172,10 @@ module.exports = {
   },
 
   async resetSenha(req, res) {
-    // Only admins can reset passwords.
-    if (req.userPerfil !== "admin") {
+    // Only admins and managers can reset passwords.
+    if (req.userPerfil === "usuario") {
       return res.status(403).json({
-        error: "Somente admin pode resetar senha",
+        error: "Somente admin ou gerente pode resetar senha",
       });
     }
 
@@ -187,6 +187,14 @@ module.exports = {
       return res.status(404).json({
         error: "Usuário não encontrado",
       });
+    }
+
+    if (req.userPerfil === "gerente") {
+      if (user.agenciaId !== req.userAgenciaId || user.perfil !== "usuario") {
+        return res.status(403).json({
+          error: "Gerente só pode resetar senha de usuários da própria agência",
+        });
+      }
     }
 
     // Prevent reset of the last admin.
@@ -250,8 +258,10 @@ module.exports = {
   },
 
   async delete(req, res) {
-    if (req.userPerfil !== "admin") {
-      return res.status(403).json({ error: "Somente admin pode excluir" });
+    if (req.userPerfil === "usuario") {
+      return res.status(403).json({
+        error: "Somente admin ou gerente pode excluir",
+      });
     }
 
     const { id } = req.params;
@@ -259,6 +269,14 @@ module.exports = {
 
     if (!user) {
       return res.status(404).json({ error: "Usuário não encontrado" });
+    }
+
+    if (req.userPerfil === "gerente") {
+      if (user.agenciaId !== req.userAgenciaId || user.perfil !== "usuario") {
+        return res.status(403).json({
+          error: "Gerente só pode excluir usuários da própria agência",
+        });
+      }
     }
 
     // Prevent deleting the last admin.
@@ -275,7 +293,7 @@ module.exports = {
     // Prevent self-deletion.
     if (Number(id) === req.userId) {
       return res.status(400).json({
-        error: "Administrador não pode se excluir",
+        error: "Usuário não pode se excluir",
       });
     }
 
