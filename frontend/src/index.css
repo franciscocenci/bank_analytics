@@ -5,12 +5,12 @@
 }
 
 html,
-/*body,
+body,
 #root {
   width: 100%;
   height: 100%;
-  font-family: Lufga, Calibri, Poppins;
-}*/
+}
+
 body {
   margin: 0;
   font-family: "Poppins", Calibri, sans-serif;

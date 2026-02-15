@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -6,7 +6,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  ResponsiveContainer,
   Legend,
   ReferenceLine,
 } from "recharts";
@@ -21,6 +20,8 @@ export default function EvolucaoVendasChart({
   comparacaoId,
   agenciaId,
 }) {
+  const containerRef = useRef(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [dados, setDados] = useState({
     lista: [],
     meta: 0,
@@ -150,6 +151,34 @@ export default function EvolucaoVendasChart({
     return () => controller.abort();
   }, [carregarDados, dataInicio, dataFim]);
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      setContainerSize({
+        width: el.offsetWidth || 0,
+        height: el.offsetHeight || 0,
+      });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        const { width, height } = entry.contentRect;
+        setContainerSize({ width, height });
+      });
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="evolucao-chart">
       <h3 className="evolucao-chart-title">
@@ -160,9 +189,11 @@ export default function EvolucaoVendasChart({
         <div className="evolucao-chart-loading">Carregando dados...</div>
       )}
 
-      <div className="evolucao-chart-canvas">
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="evolucao-chart-canvas" ref={containerRef}>
+        {containerSize.width > 0 && containerSize.height > 0 ? (
           <LineChart
+            width={Math.max(containerSize.width, 320)}
+            height={Math.max(containerSize.height, 280)}
             data={dados.lista}
             margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
@@ -239,7 +270,7 @@ export default function EvolucaoVendasChart({
               connectNulls={true}
             />
           </LineChart>
-        </ResponsiveContainer>
+        ) : null}
       </div>
     </div>
   );

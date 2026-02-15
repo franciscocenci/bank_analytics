@@ -8,6 +8,7 @@ const agenciaRoutes = require("./routes/agencia.routes");
 const userRoutes = require("./routes/user.routes");
 const periodoRoutes = require("./routes/periodo.routes");
 const produtoRoutes = require("./routes/produto.routes");
+const requestTiming = require("./middlewares/requestTiming");
 
 require("dotenv").config();
 
@@ -42,6 +43,7 @@ app.use(
   }),
 );
 app.use(express.json());
+app.use(requestTiming);
 
 // Health check endpoint.
 app.get("/", (req, res) => {

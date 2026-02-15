@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [agencias, setAgencias] = useState([]);
   const [agenciaSelecionada, setAgenciaSelecionada] = useState("todas");
   const [agenciaResumoSelecionada, setAgenciaResumoSelecionada] = useState("todas");
+  const [rankingsProdutos, setRankingsProdutos] = useState({});
   const [ordenacaoResumo, setOrdenacaoResumo] = useState(() => {
     if (typeof window === "undefined") return "percentual_asc";
     return (
@@ -177,6 +178,36 @@ export default function Dashboard() {
 
     carregarProdutos();
   }, [periodoAtualId]);
+
+  useEffect(() => {
+    if (!periodoAtualId || produtos.length === 0) {
+      setRankingsProdutos({});
+      return;
+    }
+
+    let ativo = true;
+
+    async function carregarRankings() {
+      try {
+        const res = await api.get("/dashboard/ranking-agencias/todos", {
+          params: { periodoId: periodoAtualId },
+        });
+        if (ativo) {
+          setRankingsProdutos(res.data?.produtos || {});
+        }
+      } catch (err) {
+        if (ativo) {
+          setRankingsProdutos({});
+        }
+        console.error("Erro ao carregar rankings", err);
+      }
+    }
+
+    carregarRankings();
+    return () => {
+      ativo = false;
+    };
+  }, [periodoAtualId, produtos.length]);
 
   useEffect(() => {
     if (!periodoAtualId) return;
@@ -344,6 +375,7 @@ export default function Dashboard() {
                   produto={p}
                   periodoId={periodoAtualId}
                   agenciaIdDestaque={user?.agenciaId}
+                  rankingData={rankingsProdutos[p]}
                 />
               ))}
             </div>

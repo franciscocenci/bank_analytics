@@ -167,6 +167,7 @@
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  min-width: 0;
 }
 
 .evolucao-chart-title {
@@ -175,8 +176,13 @@
 }
 
 .evolucao-chart-canvas {
-  flex: 1;
-  min-height: 320px;
+  flex: 0 0 auto;
+  height: clamp(280px, 55vh, 520px);
+  min-height: 280px;
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .evolucao-chart-loading {

@@ -14,6 +14,10 @@ router.get("/resumo-atual", DashboardController.resumoAtual);
 
 // ranking de agências (valor realizado)
 router.get("/ranking-agencias", DashboardController.rankingAgencias);
+router.get(
+	"/ranking-agencias/todos",
+	DashboardController.rankingAgenciasTodos,
+);
 
 // produtos ativos
 router.get("/produtos-ativos", DashboardController.produtosAtivos);
