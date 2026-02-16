@@ -1,8 +1,6 @@
-
 const AuthController = require('../../src/controllers/AuthController');
 const db = require('../../src/models');
 const User = db.User;
-const Agencia = db.Agencia;
 const { createMockResponse } = require('../helpers/mockResponse');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -13,7 +11,6 @@ jest.mock('bcrypt');
 
 const validToken = 'valid-token';
 const validTokenHash = crypto.createHash('sha256').update(validToken).digest('hex');
-const now = new Date();
 const userMock = {
   id: 1,
   nome: 'Usuário Teste',

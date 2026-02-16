@@ -21,6 +21,8 @@ export default function AdminLayout() {
   const configDefaultRoute = isAdmin
     ? "/admin/configuracoes/importacao"
     : "/admin/configuracoes/usuarios";
+  const configMenuOpen = configOpen || isConfigRoute;
+  const dashboardMenuOpen = dashboardOpen || isDashboardRoute;
 
   function handleLogout() {
     logout();
@@ -56,20 +58,6 @@ export default function AdminLayout() {
       }
     };
   }, [user?.perfil]);
-
-  useEffect(() => {
-    if (isConfigRoute) {
-      setConfigOpen(true);
-    }
-  }, [isConfigRoute]);
-
-  useEffect(() => {
-    if (isDashboardRoute) {
-      setDashboardOpen(true);
-      return;
-    }
-    setDashboardOpen(false);
-  }, [isDashboardRoute]);
 
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
@@ -130,7 +118,7 @@ export default function AdminLayout() {
         </div>
 
         <nav>
-          <div className={`nav-group ${dashboardOpen ? "open" : ""}`}>
+          <div className={`nav-group ${dashboardMenuOpen ? "open" : ""}`}>
             <NavLink
               to="/admin/dashboard"
               className={({ isActive }) => (isActive ? "active" : "")}
@@ -143,8 +131,8 @@ export default function AdminLayout() {
             </NavLink>
 
             <div
-              className={`nav-submenu ${dashboardOpen ? "open" : ""}`}
-              aria-hidden={!dashboardOpen}
+              className={`nav-submenu ${dashboardMenuOpen ? "open" : ""}`}
+              aria-hidden={!dashboardMenuOpen}
             >
               <button
                 type="button"
@@ -177,12 +165,12 @@ export default function AdminLayout() {
           </div>
 
           {(isAdmin || isGerente) && (
-            <div className={`nav-group ${configOpen ? "open" : ""}`}>
+            <div className={`nav-group ${configMenuOpen ? "open" : ""}`}>
               <button
                 type="button"
                 className={`nav-toggle${isConfigRoute ? " active" : ""}`}
                 onClick={() => {
-                  const next = !configOpen;
+                  const next = !configMenuOpen;
                   setConfigOpen(next);
                   if (next) {
                     setDashboardOpen(false);
@@ -192,12 +180,17 @@ export default function AdminLayout() {
                   }
                 }}
               >
-                <span>Configurações</span>
+                <span className="nav-link-with-badge">
+                  Configurações
+                  {isAdmin && pendentes > 0 && (
+                    <span className="nav-badge">{pendentes}</span>
+                  )}
+                </span>
               </button>
 
               <div
-                className={`nav-submenu ${configOpen ? "open" : ""}`}
-                aria-hidden={!configOpen}
+                className={`nav-submenu ${configMenuOpen ? "open" : ""}`}
+                aria-hidden={!configMenuOpen}
               >
                   {isAdmin && (
                     <NavLink
@@ -250,6 +243,16 @@ export default function AdminLayout() {
                       }
                     >
                       Produtos
+                    </NavLink>
+                  )}
+                  {isAdmin && (
+                    <NavLink
+                      to="/admin/configuracoes/status-sistema"
+                      className={({ isActive }) =>
+                        isActive ? "nav-subitem active" : "nav-subitem"
+                      }
+                    >
+                      Saúde do Sistema
                     </NavLink>
                   )}
               </div>

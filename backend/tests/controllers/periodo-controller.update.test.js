@@ -14,7 +14,7 @@ describe("PeriodoController.update", () => {
     Periodo.findByPk.mockReset();
   });
 
-  test("returns 404 when period not found", async () => {
+  test("retorna 404 quando o período não é encontrado", async () => {
     Periodo.findByPk.mockResolvedValue(null);
     const req = {
       userPerfil: "admin",
@@ -29,7 +29,7 @@ describe("PeriodoController.update", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Período não encontrado" });
   });
 
-  test("rejects invalid date range", async () => {
+  test("rejeita intervalo de datas inválido", async () => {
     Periodo.findByPk.mockResolvedValue({ update: jest.fn() });
     const req = {
       userPerfil: "admin",

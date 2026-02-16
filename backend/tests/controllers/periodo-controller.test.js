@@ -55,7 +55,7 @@ describe("PeriodoController.create", () => {
     });
   });
 
-  test("rejects overlapping period", async () => {
+  test("rejeita período sobreposto", async () => {
     Periodo.findOne.mockResolvedValue({ dataFim: "2026-06-30" });
     const req = {
       userPerfil: "admin",
@@ -72,7 +72,7 @@ describe("PeriodoController.create", () => {
     });
   });
 
-  test("creates period when valid", async () => {
+  test("cria período quando válido", async () => {
     Periodo.findOne.mockResolvedValue(null);
     Periodo.create.mockResolvedValue({ id: 10 });
     const req = {

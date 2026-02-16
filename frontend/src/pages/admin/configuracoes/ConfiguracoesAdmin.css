@@ -227,6 +227,10 @@
   opacity: 1;
 }
 
+.status-pill-info {
+  cursor: default;
+}
+
 .status-ativo {
   background: #dcfce7;
   color: #166534;

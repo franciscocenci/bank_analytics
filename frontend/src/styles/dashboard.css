@@ -1,13 +1,9 @@
 .dashboard-page {
   display: flex;
   flex-direction: column;
-  gap: 40px;
-  padding: 24px 20px 40px;
+  gap: 24px;
+  padding: 8px 20px 32px;
   scroll-behavior: smooth;
-}
-
-.dashboard-title {
-  margin: 0;
 }
 
 .dashboard-section {

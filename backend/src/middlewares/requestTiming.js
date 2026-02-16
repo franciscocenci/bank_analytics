@@ -19,8 +19,9 @@ module.exports = function requestTiming(req, res, next) {
     const status = res.statusCode;
     const method = req.method;
     const path = req.originalUrl || req.url;
+    const requestId = req.requestId || req.headers["x-request-id"] || "-";
     console.log(
-      `[HTTP ${elapsedMs.toFixed(1)}ms] ${status} ${method} ${path}`,
+      `[HTTP ${elapsedMs.toFixed(1)}ms] [req:${requestId}] ${status} ${method} ${path}`,
     );
   });
 
