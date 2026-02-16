@@ -1,78 +1,140 @@
 # bank_analytics
 
-## Configuração por ambiente
-
-Copie os arquivos de exemplo e ajuste as variáveis:
+## Setup rápido
 
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-Principais variáveis do backend:
+```bash
+npm install
+npm run install-all
+npm run dev
+```
 
-- DB_NAME, DB_USER, DB_PASS, DB_HOST, DB_PORT
-- JWT_SECRET
-- INITIAL_ADMIN_NAME, INITIAL_ADMIN_EMAIL, INITIAL_ADMIN_PASSWORD (usadas no seed manual)
-- APP_BASE_URL (usada para montar link de troca de senha)
-- LOG_SQL (true/false)
+`npm run dev` na raiz sobe:
 
-Principais variáveis do frontend:
+- frontend (`5173`)
+- backend em microsserviços (`gateway + auth + data + analytics`)
 
-- VITE_API_URL (URL do backend)
+## Execução
 
-## Codespaces (URLs)
-
-Quando rodar no Codespaces, use:
-
-- Frontend: `https://<seu-codespace>-5173.app.github.dev`
-- Backend: `https://<seu-codespace>-5000.app.github.dev`
-
-## Como rodar
-
-Backend:
+Backend (microsserviços):
 
 ```bash
 cd backend
-npm install
 npm run dev
+```
+
+Backend (fallback monólito):
+
+```bash
+cd backend
+npm run dev:monolith
 ```
 
 Frontend:
 
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-## Backend (migrations)
+## Migrations e seed
 
-Rodar migrations manualmente:
+Rodar migration manual:
 
 ```bash
 cd backend
 npm run db:migrate
 ```
 
-O comando `npm run dev` executa migrations automaticamente. Para pular:
+Pular migration automática no `dev`:
 
 ```bash
 cd backend
 SKIP_MIGRATIONS=true npm run dev
 ```
 
-## Seed do admin (manual)
-
-Para criar o primeiro admin em ambiente novo:
+Seed de admin:
 
 ```bash
 cd backend
 npm run seed:admin
 ```
 
-Em produção, o seed exige a flag:
+Em produção:
 
 ```bash
 ALLOW_ADMIN_SEED=true NODE_ENV=production npm run seed:admin
+```
+
+## Arquitetura atual (MVP)
+
+Portas padrão:
+
+- Gateway: `5000` (`PORT`)
+- Auth: `5001` (`AUTH_PORT` / `AUTH_URL`)
+- Data: `5002` (`DATA_PORT` / `DATA_URL`)
+- Analytics: `5003` (`ANALYTICS_PORT` / `ANALYTICS_URL`)
+
+Roteamento via gateway:
+
+- `/auth/*` -> auth
+- `/agencias|users|periodos|produtos|import/*` -> data
+- `/dashboard/*` -> analytics
+
+## Saúde e monitoramento
+
+Endpoints:
+
+- `GET http://localhost:5000/status`
+- `GET http://localhost:5000/status/deps` (admin)
+- `GET http://localhost:5001/status`
+- `GET http://localhost:5002/status`
+- `GET http://localhost:5003/status`
+
+Tela admin:
+
+- `http://localhost:5173/admin/configuracoes/status-sistema`
+
+## Request-Id
+
+As APIs aceitam e retornam `X-Request-Id`.
+
+- Se o cliente enviar, o ID é reutilizado.
+- Se não enviar, o backend gera automaticamente.
+- O gateway propaga o mesmo ID para os serviços internos.
+- Os logs HTTP incluem `[req:<id>]`.
+
+Exemplo:
+
+```bash
+curl -H "X-Request-Id: pos-analise-001" http://localhost:5000/status
+```
+
+## CI (Quality Gate)
+
+Workflow em `.github/workflows/ci.yml`:
+
+1. instala dependências
+2. roda testes do backend
+3. roda build do frontend
+
+Use com branch protection na `main` para bloquear merge quando o CI falhar.
+
+## Troubleshooting rápido
+
+```bash
+docker-compose ps
+docker-compose logs -f db
+```
+
+```bash
+curl http://localhost:5000/status
+curl http://localhost:5000/status/deps
+curl http://localhost:5001/status
+curl http://localhost:5002/status
+curl http://localhost:5003/status
 ```

@@ -12,10 +12,7 @@
   --nav-text: #cbd5f5;
   --nav-text-strong: #0f172a;
   --nav-glow: rgba(59, 130, 246, 0.25);
-  background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 45%),
-    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.12), transparent 40%),
-    #f8fafc;
+  background: #f4f6f8;
   min-height: 100vh;
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
   color: var(--ink);

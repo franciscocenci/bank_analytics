@@ -1,36 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import api from "../services/api";
+import { useMemo } from "react";
 
 export default function RankingProduto({
   produto,
   periodoId,
   agenciaIdDestaque,
+  rankingData,
 }) {
-  const [dados, setDados] = useState([]);
-  const [mensuracao, setMensuracao] = useState("volume");
+  const dados = rankingData?.ranking || [];
+  const mensuracao = rankingData?.mensuracao || "volume";
 
   const agenciaDestaque = useMemo(() => {
     if (!agenciaIdDestaque) return null;
     return Number(agenciaIdDestaque);
   }, [agenciaIdDestaque]);
 
-  useEffect(() => {
-    async function carregar() {
-      try {
-        const res = await api.get("/dashboard/ranking-agencias", {
-          params: { produto, periodoId },
-        });
-
-        // pegamos apenas top 5
-        setDados(res.data.ranking.slice(0, 5));
-        setMensuracao(res.data.mensuracao || "volume");
-      } catch (err) {
-        console.error("Erro ao carregar ranking", produto, err);
-      }
-    }
-
-    carregar();
-  }, [produto, periodoId]);
+  const topCinco = useMemo(() => dados.slice(0, 5), [dados]);
 
   return (
     <div className="ranking-card">
@@ -46,7 +30,7 @@ export default function RankingProduto({
         </thead>
 
         <tbody>
-          {dados.map((ag, index) => (
+          {topCinco.map((ag, index) => (
             <tr
               key={ag.agencia.id}
               className={

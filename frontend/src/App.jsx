@@ -8,6 +8,7 @@ import Agencias from "./pages/admin/configuracoes/Agencias";
 import Usuarios from "./pages/admin/configuracoes/Usuarios";
 import Periodos from "./pages/admin/configuracoes/Periodos";
 import Produtos from "./pages/admin/configuracoes/Produtos";
+import StatusSistema from "./pages/admin/configuracoes/StatusSistema";
 import TrocarSenha from "./pages/TrocarSenha";
 import Dashboard from "./pages/Dashboard";
 import CriarConta from "./pages/CriarConta";
@@ -79,6 +80,14 @@ export default function App() {
               element={
                 <PrivateRoute adminOnly>
                   <Produtos />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="status-sistema"
+              element={
+                <PrivateRoute adminOnly>
+                  <StatusSistema />
                 </PrivateRoute>
               }
             />

@@ -1,13 +1,9 @@
 .dashboard-page {
   display: flex;
   flex-direction: column;
-  gap: 40px;
-  padding: 24px 20px 40px;
+  gap: 24px;
+  padding: 8px 20px 32px;
   scroll-behavior: smooth;
-}
-
-.dashboard-title {
-  margin: 0;
 }
 
 .dashboard-section {
@@ -167,6 +163,7 @@
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  min-width: 0;
 }
 
 .evolucao-chart-title {
@@ -175,8 +172,13 @@
 }
 
 .evolucao-chart-canvas {
-  flex: 1;
-  min-height: 320px;
+  flex: 0 0 auto;
+  height: clamp(280px, 55vh, 520px);
+  min-height: 280px;
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
 }
 
 .evolucao-chart-loading {

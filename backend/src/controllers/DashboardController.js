@@ -366,6 +366,116 @@ async function rankingAgencias(req, res) {
 }
 
 /* =========================================================
+RANKING DE AGENCIAS (TODOS OS PRODUTOS)
+========================================================= */
+async function rankingAgenciasTodos(req, res) {
+  try {
+    const { orderBy = "valor", periodoId } = req.query;
+    const periodo = await obterPeriodoBase(periodoId);
+
+    if (!periodo) {
+      return res.status(404).json({
+        error: "Nenhum período vigente encontrado",
+      });
+    }
+
+    const whereBase = {};
+    const ultimaData = await obterUltimaData(periodo, whereBase);
+
+    if (!ultimaData) {
+      return res.json({ produtos: {} });
+    }
+
+    const where = {
+      ...whereBase,
+      data: ultimaData,
+    };
+
+    const rows = await VendaMeta.findAll({
+      where,
+      include: [
+        {
+          model: Produto,
+          as: "produto",
+          attributes: [],
+        },
+        {
+          model: Agencia,
+          as: "agencia",
+          attributes: [],
+        },
+      ],
+      attributes: [
+        [Sequelize.col("produto.nome"), "produtoNome"],
+        [Sequelize.col("produto.mensuracao"), "produtoMensuracao"],
+        [Sequelize.col("agencia.id"), "agenciaId"],
+        [Sequelize.col("agencia.nome"), "agenciaNome"],
+        [Sequelize.col("agencia.codigo"), "agenciaCodigo"],
+        [Sequelize.fn("SUM", Sequelize.col("valorMeta")), "meta"],
+        [Sequelize.fn("SUM", Sequelize.col("valorRealizado")), "realizado"],
+      ],
+      group: [
+        "produto.id",
+        "produto.nome",
+        "produto.mensuracao",
+        "agencia.id",
+        "agencia.nome",
+        "agencia.codigo",
+      ],
+      raw: true,
+    });
+
+    const produtos = {};
+
+    rows.forEach((item) => {
+      const produtoNome = item.produtoNome || "";
+      if (!produtoNome) return;
+
+      if (!produtos[produtoNome]) {
+        produtos[produtoNome] = {
+          mensuracao: item.produtoMensuracao || "volume",
+          ranking: [],
+        };
+      }
+
+      const meta = numeroSeguro(item.meta);
+      const realizado = numeroSeguro(item.realizado);
+
+      produtos[produtoNome].ranking.push({
+        agencia: {
+          id: item.agenciaId,
+          nome: item.agenciaNome,
+          codigo: item.agenciaCodigo,
+        },
+        meta,
+        realizado,
+        percentual: meta > 0 ? Number(((realizado / meta) * 100).toFixed(2)) : 0,
+      });
+    });
+
+    Object.values(produtos).forEach((produto) => {
+      produto.ranking.sort((a, b) =>
+        orderBy === "percentual"
+          ? b.percentual - a.percentual
+          : b.realizado - a.realizado,
+      );
+
+      produto.ranking = produto.ranking.map((item, index) => ({
+        ...item,
+        ranking: index + 1,
+      }));
+    });
+
+    return res.json({ produtos });
+  } catch (err) {
+    console.error("Erro no ranking de agências (todos):", err);
+    return res.status(500).json({
+      error: "Erro ao gerar ranking de agências",
+    });
+  }
+}
+
+/* =========================================================
 EVOLUÇÃO DE VENDAS
 ========================================================= */
 async function evolucaoVendas(req, res) {
@@ -503,6 +613,7 @@ module.exports = {
   produtosAtivos,
   resumoAtual,
   rankingAgencias,
+  rankingAgenciasTodos,
   evolucaoVendas,
   listarPeriodos,
 };

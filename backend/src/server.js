@@ -8,6 +8,9 @@ const agenciaRoutes = require("./routes/agencia.routes");
 const userRoutes = require("./routes/user.routes");
 const periodoRoutes = require("./routes/periodo.routes");
 const produtoRoutes = require("./routes/produto.routes");
+const requestId = require("./middlewares/requestId");
+const requestTiming = require("./middlewares/requestTiming");
+const { getRuntimeStatus } = require("./utils/runtimeInfo");
 
 require("dotenv").config();
 
@@ -38,14 +41,20 @@ app.use(
     origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
   }),
 );
 app.use(express.json());
+app.use(requestId);
+app.use(requestTiming);
 
 // Health check endpoint.
 app.get("/", (req, res) => {
   res.send("API Bank Analytics rodando");
+});
+
+app.get("/status", (req, res) => {
+  res.json(getRuntimeStatus("monolith", __dirname));
 });
 
 // API routes.

@@ -157,7 +157,7 @@
 }
 
 .nav-submenu.open {
-  max-height: 260px;
+  max-height: 520px;
   opacity: 1;
   transform: translateY(0);
 }

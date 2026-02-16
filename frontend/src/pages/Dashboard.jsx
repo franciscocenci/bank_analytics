@@ -19,12 +19,12 @@ export default function Dashboard() {
   const [produtos, setProdutos] = useState([]);
   const [periodos, setPeriodos] = useState([]);
   const [periodoAtualId, setPeriodoAtualId] = useState("");
-  const [periodoEvolucaoId, setPeriodoEvolucaoId] = useState("");
   const [periodoComparacaoId, setPeriodoComparacaoId] = useState("");
   const [produtoSelecionado, setProdutoSelecionado] = useState("");
   const [agencias, setAgencias] = useState([]);
   const [agenciaSelecionada, setAgenciaSelecionada] = useState("todas");
   const [agenciaResumoSelecionada, setAgenciaResumoSelecionada] = useState("todas");
+  const [rankingsProdutos, setRankingsProdutos] = useState({});
   const [ordenacaoResumo, setOrdenacaoResumo] = useState(() => {
     if (typeof window === "undefined") return "percentual_asc";
     return (
@@ -33,29 +33,6 @@ export default function Dashboard() {
   });
 
   const periodoAtual = periodos.find((p) => String(p.id) === String(periodoAtualId));
-  const periodoEvolucao = periodos.find(
-    (p) => String(p.id) === String(periodoEvolucaoId),
-  );
-
-  function formatarValor(produto, valor) {
-    const produtosEmUnidade = [
-      "Cartão de Crédito",
-      "Cartao de Credito",
-      "Cartões",
-    ];
-
-    if (produtosEmUnidade.includes(produto)) {
-      return Math.round(valor).toLocaleString("pt-BR");
-    }
-
-    return (
-      "R$ " +
-      Number(valor).toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    );
-  }
 
   function formatarData(dataISO) {
     if (!dataISO) return "";
@@ -131,7 +108,6 @@ export default function Dashboard() {
           const selecionado = atual || lista[0];
           const periodoId = String(selecionado.id);
           setPeriodoAtualId(periodoId);
-          setPeriodoEvolucaoId(periodoId);
         }
       } catch (err) {
         console.error("Erro ao buscar períodos:", err);
@@ -176,7 +152,36 @@ export default function Dashboard() {
     }
 
     carregarProdutos();
-  }, [periodoAtualId]);
+  }, [periodoAtualId, produtoSelecionado]);
+
+  useEffect(() => {
+    if (!periodoAtualId || produtos.length === 0) {
+      return;
+    }
+
+    let ativo = true;
+
+    async function carregarRankings() {
+      try {
+        const res = await api.get("/dashboard/ranking-agencias/todos", {
+          params: { periodoId: periodoAtualId },
+        });
+        if (ativo) {
+          setRankingsProdutos(res.data?.produtos || {});
+        }
+      } catch (err) {
+        if (ativo) {
+          setRankingsProdutos({});
+        }
+        console.error("Erro ao carregar rankings", err);
+      }
+    }
+
+    carregarRankings();
+    return () => {
+      ativo = false;
+    };
+  }, [periodoAtualId, produtos.length]);
 
   useEffect(() => {
     if (!periodoAtualId) return;
@@ -330,8 +335,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      <h1 className="dashboard-title">Dashboard</h1>
-
       {resumo && (
         <>
           <section className="dashboard-section" id="grafico-ranking">
@@ -344,6 +347,7 @@ export default function Dashboard() {
                   produto={p}
                   periodoId={periodoAtualId}
                   agenciaIdDestaque={user?.agenciaId}
+                  rankingData={rankingsProdutos[p]}
                 />
               ))}
             </div>
